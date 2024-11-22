@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +11,11 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"gorm.io/driver/mysql"
+
+	models "user_authorization/domain"
+
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -21,15 +25,13 @@ func main() {
 		log.Fatal("Error loading .env file",err)
 	}
 	fmt.Println(os.Getenv("DB_CONNECTION_STRING"))
-	db, err := sql.Open("mysql", os.Getenv("DB_CONNECTION_STRING"))
+    db, err := gorm.Open(mysql.Open(os.Getenv("DB_CONNECTION_STRING")), &gorm.Config{})
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("Failed to connect to database", err)
 	}
-	defer db.Close()
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
+
+    db.AutoMigrate(&models.User{})
+
 	fmt.Println("Successfully connected to database")
 	UserRepo := repositories.NewUserRepository(db)
 	UserUsecase := usecases.NewUserUsecase(UserRepo)

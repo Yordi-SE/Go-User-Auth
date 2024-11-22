@@ -15,9 +15,9 @@ func NewRouter ( routerControllers *RouterControllers)  {
 	router := gin.Default()
 
 	router.POST("/user/register",routerControllers.UserController.RegisterUser)
-	router.GET("/user/get")
-	router.GET("/user/get/:id")
-	router.PUT("/user/update/:id")
-	router.DELETE("/user/delete/:id")
+	router.GET("/user/get",routerControllers.UserController.GetUsers)
+	router.GET("/user/get/:id",routerControllers.UserController.GetUserById)
+	router.PUT("/user/update/:id",routerControllers.UserController.UpdateUser)
+	router.DELETE("/user/delete/:id",routerControllers.UserController.DeleteUser)
 	router.Run(":" + os.Getenv("PORT"))
 }
