@@ -6,6 +6,7 @@ import (
 	"os"
 	"user_authorization/delivery/controllers"
 	"user_authorization/delivery/router"
+	"user_authorization/infrastructure"
 	"user_authorization/repositories"
 	"user_authorization/usecases"
 
@@ -33,11 +34,16 @@ func main() {
     db.AutoMigrate(&models.User{})
 
 	fmt.Println("Successfully connected to database")
+	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"))
+	pwdService := infrastructure.NewHashingService()
 	UserRepo := repositories.NewUserRepository(db)
-	UserUsecase := usecases.NewUserUsecase(UserRepo)
+	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService)
 	userControllers := controllers.NewUserController(UserUsecase)
+	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService)
+	userAuthController := controllers.NewUserAuthController(UserAuth)
 	routerControllers := router.RouterControllers{
 		UserController: userControllers,
+		UserAuthController: userAuthController,
 	}
 	router.NewRouter( &routerControllers)
 

@@ -30,6 +30,12 @@ type UserLoginDTO struct {
 	Password string `json:"password"`
 }
 
+// tokenDTO
+type TokenDTO struct {
+	AccessToken string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 // UserUpdateDTO struct
 type UserUpdateDTO struct {
 	FullName   string `json:"full_name"`

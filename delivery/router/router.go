@@ -9,6 +9,7 @@ import (
 
 type RouterControllers struct {
 	UserController *controllers.UserController
+	UserAuthController *controllers.UserAuthController
 }
 
 func NewRouter ( routerControllers *RouterControllers)  {
@@ -19,5 +20,8 @@ func NewRouter ( routerControllers *RouterControllers)  {
 	router.GET("/user/get/:id",routerControllers.UserController.GetUserById)
 	router.PUT("/user/update/:id",routerControllers.UserController.UpdateUser)
 	router.DELETE("/user/delete/:id",routerControllers.UserController.DeleteUser)
+
+	router.POST("/user/login",routerControllers.UserAuthController.Login)
 	router.Run(":" + os.Getenv("PORT"))
 }
+

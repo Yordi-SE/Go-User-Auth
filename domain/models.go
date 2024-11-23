@@ -1,23 +1,26 @@
 package models
 
 import (
-	_ "github.com/go-sql-driver/mysql"
+	"time"
+
 	"github.com/google/uuid"
 )
 
 // User model
 type User struct {
-    UserId          uuid.UUID `json:"user_id" db:"user_id"`
-    FullName        string    `json:"full_name" db:"full_name" validate:"required"`
-    Email           string    `json:"email" db:"email" validate:"required,email"`
-    Password        string    `json:"password" db:"password" validate:"required"`
-    Role            string    `json:"role" db:"role" validate:"required,oneof=admin user"`
-    PhoneNumber     string    `json:"phone_number" db:"phone_number"`
-    IsProviderSignIn bool      `json:"is_provider_sign_in" db:"is_provider_sign_in"`
-    IsVerified      bool      `json:"is_verified" db:"is_verified"`
-    ProfileImage    string    `json:"profile_image" db:"profile_image"`
-    RefreshToken    string    `json:"refresh_token" db:"refresh_token"`
-    AccessToken     string    `json:"access_token" db:"access_token"`
+    UserID           uuid.UUID `gorm:"type:char(36);primaryKey"`
+    FullName         string    `gorm:"type:varchar(255);not null"`
+    Email            string    `gorm:"type:varchar(255);unique;not null"`
+    Password         string    `gorm:"type:varchar(255);not null"`
+    Role             string    `gorm:"type:varchar(50);default:'user'"`
+    PhoneNumber      string    `gorm:"type:varchar(15)"`
+    IsProviderSignIn bool      `gorm:"type:boolean;default:false"`
+    IsVerified       bool      `gorm:"type:boolean;default:false"`
+    ProfileImage     string    `gorm:"type:varchar(255)"`
+    RefreshToken     string    `gorm:"type:text"`
+    AccessToken      string    `gorm:"type:text"`
+    CreatedAt        time.Time `gorm:"autoCreateTime"` // Automatically sets the time on insert
+    UpdatedAt        time.Time `gorm:"autoUpdateTime"` // Automatically sets the time on update
 }
 
 // DB_CONNECTION_STRING is the connection string of the database

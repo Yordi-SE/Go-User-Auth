@@ -2,14 +2,30 @@ package interfaces
 
 import (
 	models "user_authorization/domain"
+
+	"github.com/golang-jwt/jwt/v5"
+
+	errors "user_authorization/error"
 )
 
 // UserUsecase interface
 type UserRepositoryI interface {
-	CreateUser(user *models.User) (*models.User, error)
-	GetUserByEmail(email string) (*models.User, error)
-	GetUserById(userId string) (*models.User, error)
-	DeleteUser(userId string) error
-	GetUsers(page int) ([]models.User, error)
-	UpdateUser(userId string, user *models.User) error
+	CreateUser(user *models.User) (*models.User, *errors.CustomError)
+	GetUserById(userId string) (*models.User, *errors.CustomError)
+	UpdateUserToken(userId string, accessToken string, refreshToken string) *errors.CustomError 
+	DeleteUser(userId string) *errors.CustomError
+	GetUserByEmail(email string) (*models.User, *errors.CustomError)
+	GetUsers(page int) ([]models.User, *errors.CustomError)
+	UpdateUser(userId string, user *models.User) *errors.CustomError
+}
+
+type HashingServiceI interface {
+	 HashPassword(password string) (string, *errors.CustomError)
+	ComparePassword(hashedPassword string, password string) bool
+}
+
+type JWTServiceI interface {
+	Generate(user *models.User) (string, string, *errors.CustomError )
+	ValidateAccessToken(token string) (*jwt.Token, *errors.CustomError )
+	ValidateRefreshToken(token string) (*jwt.Token, *errors.CustomError)
 }
