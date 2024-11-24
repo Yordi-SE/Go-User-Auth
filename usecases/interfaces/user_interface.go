@@ -28,4 +28,5 @@ type JWTServiceI interface {
 	Generate(user *models.User) (string, string, *errors.CustomError )
 	ValidateAccessToken(token string) (*jwt.Token, *errors.CustomError )
 	ValidateRefreshToken(token string) (*jwt.Token, *errors.CustomError)
+	FindClaim(token *jwt.Token) (jwt.MapClaims, bool)
 }

@@ -41,11 +41,14 @@ func main() {
 	userControllers := controllers.NewUserController(UserUsecase)
 	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService)
 	userAuthController := controllers.NewUserAuthController(UserAuth)
+	routerService := router.RouterService{
+		JwtService: jwtService,
+	}
 	routerControllers := router.RouterControllers{
 		UserController: userControllers,
 		UserAuthController: userAuthController,
 	}
-	router.NewRouter( &routerControllers)
+	router.NewRouter( &routerControllers, &routerService)
 
 }
 

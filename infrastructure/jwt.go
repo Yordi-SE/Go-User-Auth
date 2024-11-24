@@ -44,7 +44,7 @@ func (manager *JWTManager) Generate(user *models.User) (string, string, *errors.
 
 	refreshClaims := jwt.MapClaims{
 		"user_id": user.UserID,
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
+		"exp": time.Now().Add(time.Hour * 72).Unix(),
 	}
 
 	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
@@ -66,7 +66,7 @@ func (manager *JWTManager) ValidateAccessToken(token string) (*jwt.Token, *error
 	})
 
 	if err != nil {
-		return nil, errors.NewCustomError("Error parsing token", 500)
+		return nil, errors.NewCustomError(err.Error(), 500)
 	}
 
 	return parsedToken, nil
@@ -81,11 +81,19 @@ func (manager *JWTManager) ValidateRefreshToken(token string) (*jwt.Token, *erro
 	})
 
 	if err != nil {
-		return nil, errors.NewCustomError("Error parsing token", 500)
+		return nil, errors.NewCustomError(err.Error(), 500)
 	}
 
 	return parsedToken, nil
 }
 
+func (manager *JWTManager) FindClaim(token *jwt.Token) (jwt.MapClaims, bool) {
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, false
+	}
+	return claims, true
+}
 
-//
+
+//CheckToken checks the token

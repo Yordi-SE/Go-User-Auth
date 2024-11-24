@@ -39,6 +39,9 @@ func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interf
 func (u *UserUsecase) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError) {
 	userId := uuid.New()
 	Password,err := u.pwdService.HashPassword(user.Password)
+	if err != nil {
+		return nil, err
+	}
 	user.Password = Password
 	userModel := models.User{
 		UserID:      userId,
@@ -50,7 +53,7 @@ func (u *UserUsecase) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserRespon
 		PhoneNumber: user.PhoneNumber,
 	}
 	result, errs := u.userRepository.CreateUser(&userModel)
-	if (err != nil) {
+	if (errs != nil) {
 		return nil, errs
 	}
 	newUser := dto.UserResponseDTO{
@@ -130,5 +133,6 @@ func (u *UserUsecase) UpdateUser(userId string, user *dto.UserUpdateDTO) *errors
 func (u *UserUsecase) DeleteUser(userId string) *errors.CustomError {
 	return u.userRepository.DeleteUser(userId)
 }
+
 
 
