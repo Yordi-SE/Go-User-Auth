@@ -24,12 +24,13 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	jwtService := routerService.JwtService
 
 	router.POST("/user/register",routerControllers.UserController.RegisterUser)
-	router.GET("/user/get",infrastructure.AuthMiddleware(jwtService),infrastructure.AdminAuthMiddleware(jwtService),routerControllers.UserController.GetUsers)
-	router.GET("/user/get/:id",infrastructure.AuthMiddleware(jwtService),infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.GetUserById)
-	router.PUT("/user/update/:id",infrastructure.AuthMiddleware(jwtService),infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UpdateUser)
-	router.DELETE("/user/delete/:id",infrastructure.AuthMiddleware(jwtService),infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.DeleteUser)
-
+	router.GET("/user/get",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.AdminAuthMiddleware(jwtService),routerControllers.UserController.GetUsers)
+	router.GET("/user/get/:id",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,routerControllers.UserController.GetUserById)
+	router.PUT("/user/update/:id",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UpdateUser)
+	router.DELETE("/user/delete/:id",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.DeleteUser)
 	router.POST("/user/login",routerControllers.UserAuthController.Login)
+	router.GET("/user/logout",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.Logout)
+	router.POST("/user/refresh",routerControllers.UserAuthController.RefreshToken)
 	router.Run(":" + os.Getenv("PORT"))
 }
 
