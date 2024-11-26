@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"mime/multipart"
 	models "user_authorization/domain"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -29,4 +30,9 @@ type JWTServiceI interface {
 	ValidateAccessToken(token string) (*jwt.Token, *errors.CustomError )
 	ValidateRefreshToken(token string) (*jwt.Token, *errors.CustomError)
 	FindClaim(token *jwt.Token) (jwt.MapClaims, bool)
+}
+
+type FileUploadManagerI interface {
+ 	UploadFile(userID string,file *multipart.FileHeader) (string, *errors.CustomError)
+ 	DeleteFile(userID string, file *multipart.FileHeader) *errors.CustomError
 }
