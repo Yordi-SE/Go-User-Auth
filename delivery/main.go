@@ -13,6 +13,8 @@ import (
 	"github.com/cloudinary/cloudinary-go"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/providers/google"
 	"gorm.io/driver/mysql"
 
 	models "user_authorization/domain"
@@ -35,6 +37,16 @@ func main() {
     db.AutoMigrate(&models.User{})
 
 	fmt.Println("Successfully connected to database")
+	GOOGLE_CLIENT_ID := os.Getenv("GOOGLE_CLIENT_ID")
+	GOOGLE_CLIENT_SECRET := os.Getenv("GOOGLE_CLIENT_SECRET")
+	GOOGlE_REDIRECT_URL := os.Getenv("GOOGLE_REDIRECT_URL")
+
+	if GOOGLE_CLIENT_ID == "" || GOOGLE_CLIENT_SECRET == "" || GOOGlE_REDIRECT_URL == "" {
+		log.Fatal("Google client id, client secret and redirect url must be set")
+	}
+	goth.UseProviders(
+		google.New(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGlE_REDIRECT_URL,"profile","email"),
+	)
 	CLOUDINARY_API_KEY := os.Getenv("CLOUDINARY_API_KEY")
 	CLOUDINARY_API_SECRET := os.Getenv("CLOUDINARY_API_SECRET")
 	CLOUDINARY_CLOUD_NAME := os.Getenv("CLOUDINARY_CLOUD_NAME")

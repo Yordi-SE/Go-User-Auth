@@ -31,6 +31,8 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	router.POST("/user/upload/:id",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UploadProfileImagefunc)
 	router.POST("/user/login",routerControllers.UserAuthController.Login)
 	router.GET("/user/logout",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.Logout)
+	router.GET("/user/:provider",routerControllers.UserAuthController.SignInWithProvider)
+	router.GET("/api/auth/:provider/callback",routerControllers.UserAuthController.Callback)
 	router.POST("/user/refresh",routerControllers.UserAuthController.RefreshToken)
 	router.Run(":" + os.Getenv("PORT"))
 }

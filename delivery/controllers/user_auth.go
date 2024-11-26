@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"net/http"
+	models "user_authorization/domain"
 	errors "user_authorization/error"
 	"user_authorization/usecases"
 	"user_authorization/usecases/dto"
 
 	"github.com/gin-gonic/gin"
+	"github.com/markbates/goth/gothic"
 )
 
 
@@ -110,4 +112,58 @@ func (u *UserAuthController) RefreshToken(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, token)
+}
+
+
+// Handle google Login
+func (u *UserAuthController) SignInWithProvider(c *gin.Context) {
+	provider := c.Param("provider")
+
+	q := c.Request.URL.Query()
+	q.Add("provider", provider)
+	c.Request.URL.RawQuery = q.Encode()
+	gothic.BeginAuthHandler(c.Writer, c.Request)
+}
+
+
+// Handle google callback
+func (u *UserAuthController) Callback(c *gin.Context) {
+	user := models.User{}
+	provider := c.Param("provider")
+
+	q := c.Request.URL.Query()
+	q.Add("provider", provider)
+	c.Request.URL.RawQuery = q.Encode()
+
+	result, err := gothic.CompleteUserAuth(c.Writer, c.Request)
+	// fmt.Print(result)
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, errors.NewCustomError(err.Error(),http.StatusBadRequest))
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusBadRequest)})
+		return
+	}
+	user.Email = result.Email
+	user.FullName = result.Name
+	user.ProfileImage = result.AvatarURL
+
+
+	user.IsProviderSignIn = true
+	value := result.RawData["verified_email"]
+	IsVerified, ok := value.(bool)
+	if ok {
+		user.IsVerified = IsVerified
+	} else {
+		user.IsVerified = false
+	}
+	user.ProfileImage = result.AvatarURL
+
+	tokens , errs := u.userAuthUseCase.HandleProviderSignIn(&user)
+	if errs != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusUnauthorized)})
+		return 
+	}
+	c.JSON(http.StatusOK, gin.H{"token": tokens})
+
+
 }
