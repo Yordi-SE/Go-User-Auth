@@ -7,7 +7,6 @@ type UserRegistrationDTO struct {
 	FullName         string    `json:"full_name"`
 	Email			string    `json:"email"`
 	Password		 string    `json:"password"`
-	ProfileImage  string	`json:"profile_image"`
 	PhoneNumber string `json:"phone_number"`
 }
 

@@ -1,14 +1,17 @@
 package usecases
 
 import (
+	errorss "errors"
 	"log"
 	"mime/multipart"
+	"net/http"
 	models "user_authorization/domain"
 	errors "user_authorization/error"
 	"user_authorization/usecases/dto"
 	"user_authorization/usecases/interfaces"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 //userUsecase Interface
@@ -42,6 +45,42 @@ func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interf
 
 // CreateUser creates a new user
 func (u *UserUsecase) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError) {
+	existingUser, err := u.userRepository.GetUserByEmail(user.Email)
+	if err != nil && !errorss.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.NewCustomError("Database error: "+err.Error(), http.StatusInternalServerError)
+	}
+	if existingUser != nil && existingUser.IsProviderSignIn == false {
+		return nil, errors.NewCustomError("User already exists", 409)
+	} else if (existingUser != nil && existingUser.IsProviderSignIn == true) {
+		// Update the existing user
+		Password,err := u.pwdService.HashPassword(user.Password)
+		if err != nil {
+			return nil, err
+		}
+		existingUser.Password = Password
+		existingUser.FullName = user.FullName
+		existingUser.PhoneNumber = user.PhoneNumber
+		existingUser.IsProviderSignIn = false
+		errs := u.userRepository.UpdateUser(existingUser.UserID.String(), existingUser)
+		if (errs != nil) {
+			return nil, errs
+		}
+		newUser := dto.UserResponseDTO{
+			UserId: existingUser.UserID,
+			FullName: existingUser.FullName,
+			Email: existingUser.Email,
+			Role: existingUser.Role,
+			PhoneNumber: existingUser.PhoneNumber,
+			IsProviderSignIn: existingUser.IsProviderSignIn,
+			IsVerified: existingUser.IsVerified,
+			ProfileImage: existingUser.ProfileImage,
+			RefreshToken: existingUser.RefreshToken,
+			AccessToken: existingUser.AccessToken,
+		}
+		return &newUser,nil
+
+
+	}
 	userId := uuid.New()
 	Password,err := u.pwdService.HashPassword(user.Password)
 	if err != nil {
@@ -54,7 +93,6 @@ func (u *UserUsecase) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserRespon
 		Email:       user.Email,
 		Role:		"user",
 		Password:    user.Password,
-		ProfileImage: user.ProfileImage,
 		PhoneNumber: user.PhoneNumber,
 	}
 	result, errs := u.userRepository.CreateUser(&userModel)
@@ -143,27 +181,29 @@ func (u *UserUsecase) DeleteUser(userId string) *errors.CustomError {
 func (u *UserUsecase) UploadProfilePic(userID string,file *multipart.FileHeader) (string, *errors.CustomError) {
 
 
- user , errs := u.userRepository.GetUserById(userID)
+	user , errs := u.userRepository.GetUserById(userID)
 
- if errs != nil {
-	  return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
-	}
-
-
- SecureURL, err := u.fileUploadManager.UploadFile(userID,file)
- if err != nil {
-	 return "", errors.NewCustomError(err.Error(), 500)
-	}
- 
- user.ProfileImage = SecureURL
- errs = u.userRepository.UpdateUser(userID, user)
- if errs != nil {
-		deleteErr := u.fileUploadManager.DeleteFile(userID, file)
-		if deleteErr != nil {
-			log.Printf("Error rolling back uploaded image: %v", deleteErr)
+	if errs != nil {
+		return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
 		}
-	  return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
-	}
- // Return the image url
- return SecureURL, nil
+
+
+	SecureURL, err := u.fileUploadManager.UploadFile(userID,file)
+	if err != nil {
+		return "", errors.NewCustomError(err.Error(), 500)
+		}
+	
+	user.ProfileImage = SecureURL
+	errs = u.userRepository.UpdateUser(userID, user)
+	if errs != nil {
+			deleteErr := u.fileUploadManager.DeleteFile(userID, file)
+			if deleteErr != nil {
+				log.Printf("Error rolling back uploaded image: %v", deleteErr)
+			}
+		return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
+		}
+	// Return the image url
+	return SecureURL, nil
 }
+
+
