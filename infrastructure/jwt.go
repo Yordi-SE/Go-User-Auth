@@ -45,6 +45,8 @@ func (manager *JWTManager) Generate(user *models.User) (string, string, *errors.
 	refreshClaims := jwt.MapClaims{
 		"user_id": user.UserID,
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
+		"email": user.Email,
+		"role": user.Role,
 	}
 
 	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)

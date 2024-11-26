@@ -10,6 +10,7 @@ import (
 	"user_authorization/repositories"
 	"user_authorization/usecases"
 
+	"github.com/cloudinary/cloudinary-go"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
@@ -34,10 +35,22 @@ func main() {
     db.AutoMigrate(&models.User{})
 
 	fmt.Println("Successfully connected to database")
+	CLOUDINARY_API_KEY := os.Getenv("CLOUDINARY_API_KEY")
+	CLOUDINARY_API_SECRET := os.Getenv("CLOUDINARY_API_SECRET")
+	CLOUDINARY_CLOUD_NAME := os.Getenv("CLOUDINARY_CLOUD_NAME")
+
+	cloudinary_url := fmt.Sprintf("cloudinary://%s:%s@%s",CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,CLOUDINARY_CLOUD_NAME)
+	cld, err := cloudinary.NewFromURL(cloudinary_url)
+
+	if err != nil {
+		log.Fatal("Failed to connect to cloudinary", err)
+	}
+
+	fileUploadManager := infrastructure.NewFileUploadManager(cld)
 	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"))
 	pwdService := infrastructure.NewHashingService()
 	UserRepo := repositories.NewUserRepository(db)
-	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService)
+	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager)
 	userControllers := controllers.NewUserController(UserUsecase)
 	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService)
 	userAuthController := controllers.NewUserAuthController(UserAuth)

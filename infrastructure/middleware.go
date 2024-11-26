@@ -1,7 +1,6 @@
 package infrastructure
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	errors "user_authorization/error"
@@ -42,7 +41,7 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer c.Next()
 		authHeader := c.GetHeader("Authorization")
-		fmt.Println(authHeader)
+		// fmt.Println(authHeader)
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": errors.NewCustomError("Authorization header is required", http.StatusUnauthorized),
@@ -96,6 +95,7 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		}
 		c.Set("role",role)
 		c.Set("user_id",id)
+		c.Set("Authorization",authPart[1])
 	}
 }
 
@@ -118,7 +118,7 @@ func AdminAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 // AuthMiddleware middleware for user to check user id for user specific routes
 func UserAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user_id := c.Param("user_id")
+		user_id := c.Param("id")
 		defer c.Next()
 		role, exists := c.Get("role")
 		if !exists  {
@@ -132,7 +132,8 @@ func UserAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 			return
 		}
 		id, exists := c.Get("user_id")
-		if !exists || ((id == "" || id == nil || id != user_id) && role != "admin") {
+
+		if !exists || (id == "" || id == nil || id != user_id) {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": errors.NewCustomError("Unauthorized", http.StatusForbidden),
 			})

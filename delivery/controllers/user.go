@@ -90,5 +90,33 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 		c.JSON(err.StatusCode, gin.H{"error": err})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "User delete successfully"})
 }
+
+// Profile image upload
+func (u *UserController) UploadProfileImagefunc(c *gin.Context) {
+ // Get the image from request body
+ id := c.Param("id")
+
+ file, err := c.FormFile("profile_pic")
+ if err != nil {
+  c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+  return
+ }
+
+ // Upload the image locally
+ err = c.SaveUploadedFile(file, "../assets/uploads/"+file.Filename)
+
+ if err != nil {
+  c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profile image"})
+  return
+ }
+ SecureUrl, errs := u.userUseCase.UploadProfilePic(id, file)
+
+ if errs != nil {
+	  c.JSON(errs.StatusCode, gin.H{"error": errs})
+	  return
+	   }
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile image uploaded successfully", "secure_url": SecureUrl})
+ }

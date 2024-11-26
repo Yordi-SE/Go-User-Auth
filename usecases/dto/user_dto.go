@@ -36,6 +36,9 @@ type TokenDTO struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type RefreshTokenDTO struct {
+	RefreshToken string `json:"refresh_token"`
+}
 // UserUpdateDTO struct
 type UserUpdateDTO struct {
 	FullName   string `json:"full_name"`

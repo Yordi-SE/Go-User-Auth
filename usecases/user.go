@@ -1,11 +1,18 @@
 package usecases
 
 import (
+	"context"
+	"fmt"
+	"log"
+	"mime/multipart"
+	"os"
 	models "user_authorization/domain"
 	errors "user_authorization/error"
 	"user_authorization/usecases/dto"
 	"user_authorization/usecases/interfaces"
 
+	"github.com/cloudinary/cloudinary-go"
+	"github.com/cloudinary/cloudinary-go/api/uploader"
 	"github.com/google/uuid"
 )
 
@@ -15,7 +22,8 @@ type UserUseCaseI interface{
 	GetUsers(page int) ([]dto.UserResponseDTO, *errors.CustomError)
 	GetUserById(userId string) (*dto.UserResponseDTO, *errors.CustomError) 
 	UpdateUser(userId string, user *dto.UserUpdateDTO) *errors.CustomError
-DeleteUser(userId string) *errors.CustomError
+	UploadProfilePic(userID string,file *multipart.FileHeader) (string, *errors.CustomError)
+	DeleteUser(userId string) *errors.CustomError
 }
 
 
@@ -134,5 +142,43 @@ func (u *UserUsecase) DeleteUser(userId string) *errors.CustomError {
 	return u.userRepository.DeleteUser(userId)
 }
 
+// Uploade profile image
+func (u *UserUsecase) UploadProfilePic(userID string,file *multipart.FileHeader) (string, *errors.CustomError) {
+	CLOUDINARY_API_KEY := os.Getenv("CLOUDINARY_API_KEY")
+	CLOUDINARY_API_SECRET := os.Getenv("CLOUDINARY_API_SECRET")
+	CLOUDINARY_CLOUD_NAME := os.Getenv("CLOUDINARY_CLOUD_NAME")
 
+ // Remove from local
+ defer func() {
+  os.Remove("../assets/uploads/" + file.Filename)
+ }()
 
+ user , errs := u.userRepository.GetUserById(userID)
+
+ if errs != nil {
+	  return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
+	}
+ cloudinary_url := fmt.Sprintf("cloudinary://%s:%s@%s",CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,CLOUDINARY_CLOUD_NAME)
+ cld, err := cloudinary.NewFromURL(cloudinary_url)
+
+ // Upload the image on the cloud
+ var ctx = context.Background()
+ resp, err := cld.Upload.Upload(ctx, "../assets/uploads/"+file.Filename, uploader.UploadParams{PublicID: "go_auth_profile_pic" + "-" + file.Filename + "-" + userID})
+
+ if err != nil {
+  log.Fatal(err)
+  return "", errors.NewCustomError(err.Error(), 500)
+ }
+ 
+user.ProfileImage = resp.SecureURL
+ errs = u.userRepository.UpdateUser(userID, user)
+ if errs != nil {
+		_, deleteErr := cld.Upload.Destroy(ctx, uploader.DestroyParams{PublicID: "go_auth_profile_pic" + "-" + file.Filename + "-" + userID})
+		if deleteErr != nil {
+			log.Printf("Error rolling back uploaded image: %v", deleteErr)
+		}
+	  return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
+	}
+ // Return the image url
+ return resp.SecureURL, nil
+}
