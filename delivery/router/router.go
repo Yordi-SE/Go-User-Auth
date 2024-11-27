@@ -20,10 +20,13 @@ type RouterService struct {
 
 func NewRouter ( routerControllers *RouterControllers, routerService *RouterService)  {
 	router := gin.Default()
+	
+
+	router.LoadHTMLFiles("templates/verification_success.html", "templates/verification_fail.html")
 
 	jwtService := routerService.JwtService
 
-	router.POST("/user/register",routerControllers.UserController.RegisterUser)
+	router.POST("/user/register",routerControllers.UserAuthController.RegisterUser)
 	router.GET("/user/get",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.AdminAuthMiddleware(jwtService),routerControllers.UserController.GetUsers)
 	router.GET("/user/get/:id",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,routerControllers.UserController.GetUserById)
 	router.PUT("/user/update/:id",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UpdateUser)
@@ -34,6 +37,7 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	router.GET("/user/:provider",routerControllers.UserAuthController.SignInWithProvider)
 	router.GET("/api/auth/:provider/callback",routerControllers.UserAuthController.Callback)
 	router.POST("/user/refresh",routerControllers.UserAuthController.RefreshToken)
+	router.GET("/user/verify_email",routerControllers.UserAuthController.VerifyEmail)
 	router.Run(":" + os.Getenv("PORT"))
 }
 

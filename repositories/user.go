@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	errorss "errors"
 	models "user_authorization/domain"
 
 	"gorm.io/gorm"
@@ -70,7 +71,11 @@ func (r *UserRepository) GetUserById(userId string) (*models.User, *errors.Custo
 func (r *UserRepository) GetUserByEmail(email string) (*models.User, *errors.CustomError) {
     user := models.User{}
     if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
-        return nil, errors.NewCustomError("user not found", 404)
+        if errorss.Is(err, gorm.ErrRecordNotFound){
+            
+            return nil, errors.NewCustomError("user not found", 404)
+        }
+        return nil, errors.NewCustomError("error getting user", 500)
     }
     return &user, nil
 }
@@ -100,7 +105,23 @@ func (r *UserRepository) UpdateUser(userId string, user *models.User) *errors.Cu
     return nil
 }
 
+//updateUser verificatons status
+func (r *UserRepository) UpdateUserVerificationStatus(userId string,  user *models.User) *errors.CustomError {
+    var existingUser models.User
+    if err := r.db.First(&existingUser, "user_id = ?", userId).Error; err != nil {
+        if err == gorm.ErrRecordNotFound {
 
+        return errors.NewCustomError("user not found", 404)
+        }
+        return errors.NewCustomError("error getting user", 500)
+    }
+    existingUser.IsVerified = user.IsVerified
+    existingUser.VerificationToken = user.VerificationToken
+    if err := r.db.Save(&user).Error; err != nil {
+        return errors.NewCustomError("error updating user verification status", 500)
+    }
+    return nil
+}
 
 //DeleteUser deletes a user
 func (r *UserRepository) DeleteUser(userId string) *errors.CustomError {

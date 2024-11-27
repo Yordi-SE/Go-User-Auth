@@ -22,6 +22,24 @@ func NewUserAuthController(u *usecases.UserAuth) *UserAuthController {
 	}
 }
 
+//Register user
+func (u *UserAuthController) RegisterUser(c *gin.Context)  {
+	user := dto.UserRegistrationDTO{}
+	err := c.ShouldBindJSON(&user)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	newUser,errs := u.userAuthUseCase.CreateUser(&user)
+	if errs != nil {
+		c.JSON(errs.StatusCode, gin.H{"error": errs})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully",
+	"data": *newUser})
+
+}
+
 //Login user
 func (u *UserAuthController) Login(c *gin.Context) {
 	user := dto.UserLoginDTO{}
@@ -167,3 +185,22 @@ func (u *UserAuthController) Callback(c *gin.Context) {
 
 
 }
+
+
+// verify email
+func (u *UserAuthController) VerifyEmail(c *gin.Context) {
+	token := c.Query("verification_token")
+	errs := u.userAuthUseCase.VerifyEmail(token)
+	if errs != nil {
+		c.HTML(http.StatusOK, "verification_fail.html", gin.H{
+			"title": "Verification Failed",
+			"message": "The verification link is invalid or has expired.",
+		})
+
+		return
+	}
+	c.HTML(http.StatusOK, "verification_success.html", gin.H{
+		"title": "Email Verified",
+		"message": "Your email has been successfully verified.",
+	})
+	}

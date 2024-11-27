@@ -19,6 +19,7 @@ type User struct {
     ProfileImage     string    `gorm:"type:varchar(255)"`
     RefreshToken     string    `gorm:"type:text"`
     AccessToken      string    `gorm:"type:text"`
+    VerificationToken string    `gorm:"type:text"`
     CreatedAt        time.Time `gorm:"autoCreateTime"` // Automatically sets the time on insert
     UpdatedAt        time.Time `gorm:"autoUpdateTime"` // Automatically sets the time on update
 }

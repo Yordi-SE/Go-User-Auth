@@ -18,6 +18,7 @@ type UserRepositoryI interface {
 	GetUserByEmail(email string) (*models.User, *errors.CustomError)
 	GetUsers(page int) ([]models.User, *errors.CustomError)
 	UpdateUser(userId string, user *models.User) *errors.CustomError
+	UpdateUserVerificationStatus(userId string,  user *models.User) *errors.CustomError
 }
 
 type HashingServiceI interface {
@@ -30,9 +31,17 @@ type JWTServiceI interface {
 	ValidateAccessToken(token string) (*jwt.Token, *errors.CustomError )
 	ValidateRefreshToken(token string) (*jwt.Token, *errors.CustomError)
 	FindClaim(token *jwt.Token) (jwt.MapClaims, bool)
+	GenerateVerificationToken(user *models.User) (string, *errors.CustomError)
+	ValidateVerificationToken(token string) (*jwt.Token, *errors.CustomError)
 }
 
 type FileUploadManagerI interface {
  	UploadFile(userID string,file *multipart.FileHeader) (string, *errors.CustomError)
  	DeleteFile(userID string, file *multipart.FileHeader) *errors.CustomError
+}
+
+type EmailServiceI interface {
+	SendEmail(email string, subject string, body string,from string) error
+	GenerateOTP(length int) (string, error)
+	GetOTPEmailBody(otpCode string,file_name string) (string, error) 
 }

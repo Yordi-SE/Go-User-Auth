@@ -20,23 +20,7 @@ func NewUserController(u usecases.UserUseCaseI) *UserController {
 	}
 }
 
-//Register user
-func (u *UserController) RegisterUser(c *gin.Context)  {
-	user := dto.UserRegistrationDTO{}
-	err := c.ShouldBindJSON(&user)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	newUser,errs := u.userUseCase.CreateUser(&user)
-	if errs != nil {
-		c.JSON(errs.StatusCode, gin.H{"error": errs})
-		return
-	}
-	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully",
-	"data": *newUser})
 
-}
 
 //GetUsers gets 20 users per page
 func (u *UserController) GetUsers(c *gin.Context) {

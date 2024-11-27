@@ -1,22 +1,16 @@
 package usecases
 
 import (
-	errorss "errors"
 	"log"
 	"mime/multipart"
-	"net/http"
 	models "user_authorization/domain"
 	errors "user_authorization/error"
 	"user_authorization/usecases/dto"
 	"user_authorization/usecases/interfaces"
-
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 //userUsecase Interface
 type UserUseCaseI interface{
-	CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError)
 	GetUsers(page int) ([]dto.UserResponseDTO, *errors.CustomError)
 	GetUserById(userId string) (*dto.UserResponseDTO, *errors.CustomError) 
 	UpdateUser(userId string, user *dto.UserUpdateDTO) *errors.CustomError
@@ -43,76 +37,7 @@ func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interf
 	}
 }
 
-// CreateUser creates a new user
-func (u *UserUsecase) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError) {
-	existingUser, err := u.userRepository.GetUserByEmail(user.Email)
-	if err != nil && !errorss.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.NewCustomError("Database error: "+err.Error(), http.StatusInternalServerError)
-	}
-	if existingUser != nil && existingUser.IsProviderSignIn == false {
-		return nil, errors.NewCustomError("User already exists", 409)
-	} else if (existingUser != nil && existingUser.IsProviderSignIn == true) {
-		// Update the existing user
-		Password,err := u.pwdService.HashPassword(user.Password)
-		if err != nil {
-			return nil, err
-		}
-		existingUser.Password = Password
-		existingUser.FullName = user.FullName
-		existingUser.PhoneNumber = user.PhoneNumber
-		existingUser.IsProviderSignIn = false
-		errs := u.userRepository.UpdateUser(existingUser.UserID.String(), existingUser)
-		if (errs != nil) {
-			return nil, errs
-		}
-		newUser := dto.UserResponseDTO{
-			UserId: existingUser.UserID,
-			FullName: existingUser.FullName,
-			Email: existingUser.Email,
-			Role: existingUser.Role,
-			PhoneNumber: existingUser.PhoneNumber,
-			IsProviderSignIn: existingUser.IsProviderSignIn,
-			IsVerified: existingUser.IsVerified,
-			ProfileImage: existingUser.ProfileImage,
-			RefreshToken: existingUser.RefreshToken,
-			AccessToken: existingUser.AccessToken,
-		}
-		return &newUser,nil
 
-
-	}
-	userId := uuid.New()
-	Password,err := u.pwdService.HashPassword(user.Password)
-	if err != nil {
-		return nil, err
-	}
-	user.Password = Password
-	userModel := models.User{
-		UserID:      userId,
-		FullName:    user.FullName,
-		Email:       user.Email,
-		Role:		"user",
-		Password:    user.Password,
-		PhoneNumber: user.PhoneNumber,
-	}
-	result, errs := u.userRepository.CreateUser(&userModel)
-	if (errs != nil) {
-		return nil, errs
-	}
-	newUser := dto.UserResponseDTO{
-		UserId: result.UserID,
-		FullName: result.FullName,
-		Email: result.Email,
-		Role: result.Role,
-		PhoneNumber: result.PhoneNumber,
-		IsProviderSignIn: result.IsProviderSignIn,
-		IsVerified: result.IsVerified,
-		ProfileImage: result.ProfileImage,
-		RefreshToken: result.RefreshToken,
-		AccessToken: result.AccessToken,
-	}
-	return &newUser,nil
-}
 
 //GetUsers gets 20 users per page
 func (u *UserUsecase) GetUsers(page int) ([]dto.UserResponseDTO, *errors.CustomError) {

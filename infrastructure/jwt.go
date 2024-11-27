@@ -12,14 +12,16 @@ import (
 type JWTManager struct {
 	AccessTokenSecretKey string
 	RefreshTokenSecretKey string
+	VerificationTokenSecretKey string
 }
 
 
 // NewJWTManager creates a new JWTManager
-func NewJWTManager(AcessSecret, RefreshSecret string) *JWTManager {
+func NewJWTManager(AcessSecret, RefreshSecret string, VerificationSecret string) *JWTManager {
 	return &JWTManager{
 		AccessTokenSecretKey: AcessSecret,
 		RefreshTokenSecretKey: RefreshSecret,
+		VerificationTokenSecretKey: VerificationSecret,
 	}
 }
 
@@ -98,4 +100,36 @@ func (manager *JWTManager) FindClaim(token *jwt.Token) (jwt.MapClaims, bool) {
 }
 
 
-//CheckToken checks the token
+//Generate verification token
+func (manager *JWTManager) GenerateVerificationToken(user *models.User) (string, *errors.CustomError) {
+	claims := jwt.MapClaims{
+		"email": user.Email,
+		"role": user.Role,
+		"user_id": user.UserID.String(),
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
+	}
+
+	verificationToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := verificationToken.SignedString([]byte(manager.VerificationTokenSecretKey))
+	if err != nil {
+		return "", errors.NewCustomError("Error generating verification token", 500)
+	}
+	return tokenString, nil
+
+}
+
+//Validate verification token
+func (manager *JWTManager) ValidateVerificationToken(token string) (*jwt.Token, *errors.CustomError) {
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.NewCustomError("Unexpected signing method", 500)
+		}
+		return []byte(manager.VerificationTokenSecretKey), nil
+	})
+
+	if err != nil {
+		return nil, errors.NewCustomError(err.Error(), 500)
+	}
+
+	return parsedToken, nil
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"user_authorization/delivery/controllers"
 	"user_authorization/delivery/router"
 	"user_authorization/infrastructure"
@@ -19,6 +20,7 @@ import (
 
 	models "user_authorization/domain"
 
+	gomail "gopkg.in/mail.v2"
 	"gorm.io/gorm"
 )
 
@@ -37,6 +39,17 @@ func main() {
     db.AutoMigrate(&models.User{})
 
 	fmt.Println("Successfully connected to database")
+	GMAIL_SMPT := os.Getenv("GMAIL_SMPT")
+	GMAIL_USER_EMAIL := os.Getenv("GMAIL_USER_EMAIL")
+	GMAIL_USER_PASSWORD := os.Getenv("GMAIL_USER_PASSWORD")
+	EMAIL_PORT := os.Getenv("EMAIL_PORT")
+	emailPort,err := strconv.Atoi(EMAIL_PORT)
+	if err != nil {
+		log.Fatal("Email port must be an integer")
+	}
+    dialer := gomail.NewDialer(GMAIL_SMPT, emailPort, GMAIL_USER_EMAIL, GMAIL_USER_PASSWORD)
+	emailService := infrastructure.NewEmailService(dialer)
+
 	GOOGLE_CLIENT_ID := os.Getenv("GOOGLE_CLIENT_ID")
 	GOOGLE_CLIENT_SECRET := os.Getenv("GOOGLE_CLIENT_SECRET")
 	GOOGlE_REDIRECT_URL := os.Getenv("GOOGLE_REDIRECT_URL")
@@ -59,12 +72,12 @@ func main() {
 	}
 
 	fileUploadManager := infrastructure.NewFileUploadManager(cld)
-	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"))
+	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"))
 	pwdService := infrastructure.NewHashingService()
 	UserRepo := repositories.NewUserRepository(db)
 	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager)
 	userControllers := controllers.NewUserController(UserUsecase)
-	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService)
+	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService)
 	userAuthController := controllers.NewUserAuthController(UserAuth)
 	routerService := router.RouterService{
 		JwtService: jwtService,
