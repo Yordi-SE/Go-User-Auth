@@ -59,9 +59,10 @@ func (u *UserAuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Message, http.StatusUnauthorized)})
 		return 
 	}
-	fmt.Println(token)
+	// fmt.Println(token)
 	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
-    c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
+	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
+	fmt.Println("login",token.RefreshToken)
 
 	c.JSON(http.StatusOK,token)
 
@@ -116,8 +117,8 @@ func (u *UserAuthController) CheckToken(c *gin.Context) {
 // Refresh token
 func (u *UserAuthController) RefreshToken(c *gin.Context) {
 
-	refreshToken,errs :=c.Cookie("refresh_token")
-	fmt.Println(refreshToken)
+	refreshToken,errs := c.Cookie("refresh_token")
+	fmt.Println("refreshToken",refreshToken)
 	if errs != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(),http.StatusUnauthorized)})
 		return

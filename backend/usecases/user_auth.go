@@ -156,7 +156,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	}
 	result.AccessToken = accessToken
 	result.RefreshToken = refreshToken
-
+	fmt.Println(tokenId)
 	tokenModel := models.Token{
 		TokenID: tokenId,
 		UserID: result.UserID,
@@ -167,6 +167,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("refresh1",refreshToken)
 	token := dto.UserResponseDTO{
 		UserId: result.UserID,
 		FullName: result.FullName,
@@ -210,6 +211,7 @@ func (u *UserAuth) SignOut(token string) error {
 // Refresh token
 func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDTO, *errors.CustomError) {
 	// 
+	fmt.Println("refresh 1",refreshToken.RefreshToken)
 	token ,err := u.jwtService.ValidateRefreshToken(refreshToken.RefreshToken)
 	if err != nil {
 		return nil, err
@@ -247,6 +249,7 @@ func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDT
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("refresh 2" ,result.RefreshToken)
 	if result.RefreshToken != refreshToken.RefreshToken {
 		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
