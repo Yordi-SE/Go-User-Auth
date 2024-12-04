@@ -35,6 +35,16 @@ type TokenDTO struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// Email DTO
+type EmailDTO struct {
+	Email string `json:"email"`
+}
+
+//PasswordResetDTO struct
+type PasswordDTO struct {
+	Password string `json:"password"`
+}
+
 type RefreshTokenDTO struct {
 	RefreshToken string `json:"refresh_token"`
 }

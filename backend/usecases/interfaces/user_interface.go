@@ -17,8 +17,14 @@ type UserRepositoryI interface {
 	DeleteUser(userId string) *errors.CustomError
 	GetUserByEmail(email string) (*models.User, *errors.CustomError)
 	GetUsers(page int) ([]models.User, *errors.CustomError)
-	UpdateUser(userId string, user *models.User) *errors.CustomError
-	UpdateUserVerificationStatus(userId string,  user *models.User) *errors.CustomError
+	SaveUserUpdate(user *models.User) *errors.CustomError
+}
+
+type TokenRepositoryI interface{
+	CreateToken(token *models.Token) (*models.Token, *errors.CustomError)
+	GetTokenById(tokenId string) (*models.Token, *errors.CustomError)
+	SaveTokenUpdate(token *models.Token) *errors.CustomError
+	DeleteToken(tokenId string) *errors.CustomError
 }
 
 type HashingServiceI interface {
@@ -27,12 +33,14 @@ type HashingServiceI interface {
 }
 
 type JWTServiceI interface {
-	Generate(user *models.User) (string, string, *errors.CustomError )
+	 Generate(user *models.User,refreshTokenId string) (string, string, *errors.CustomError )
 	ValidateAccessToken(token string) (*jwt.Token, *errors.CustomError )
 	ValidateRefreshToken(token string) (*jwt.Token, *errors.CustomError)
 	FindClaim(token *jwt.Token) (jwt.MapClaims, bool)
 	GenerateVerificationToken(user *models.User) (string, *errors.CustomError)
 	ValidateVerificationToken(token string) (*jwt.Token, *errors.CustomError)
+	ValidePasswordResetToken(token string) (*jwt.Token, *errors.CustomError)
+	GeneratePasswordResetToken(user *models.User) (string, *errors.CustomError)
 }
 
 type FileUploadManagerI interface {

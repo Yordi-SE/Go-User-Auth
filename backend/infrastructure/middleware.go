@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"net/http"
-	"strings"
 	errors "user_authorization/error"
 	"user_authorization/usecases/interfaces"
 
@@ -20,47 +19,31 @@ func NewCORSMiddleware() *CORSMiddleware {
 
 
 
-// CORSMiddleware middleware
-func (cors *CORSMiddleware) CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusOK)
-			return
-		}
-		c.Next()
-	}
-}
+
 
 
 // AuthMiddleware middleware
 func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer c.Next()
-		authHeader := c.GetHeader("Authorization")
-		// fmt.Println(authHeader)
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": errors.NewCustomError("Authorization header is required", http.StatusUnauthorized),
-			})
-			c.Abort()
-		
-			return
-		}
-		authPart := strings.Split(authHeader, " ")
-		if len(authPart) != 2 || strings.ToLower(authPart[0]) != "bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
+		access_token, err := c.Cookie("access_token")
+		if err != nil {
+			c.JSON(http.StatusUnauthorized,gin.H{
 				"error": errors.NewCustomError("Invalid token", http.StatusUnauthorized),
 			})
 			c.Abort()
 			return
 		}
-
-		token, err := jwtService.ValidateAccessToken(authPart[1])
+		refresh_token, err := c.Cookie("refresh_token")
 		if err != nil {
+			c.JSON(http.StatusUnauthorized,gin.H{
+				"error": errors.NewCustomError("Invalid token", http.StatusUnauthorized),
+			})
+			c.Abort()
+			return
+		}
+		token, errs := jwtService.ValidateAccessToken(access_token)
+		if errs != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": err,
 			})
@@ -95,7 +78,8 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		}
 		c.Set("role",role)
 		c.Set("user_id",id)
-		c.Set("Authorization",authPart[1])
+		c.Set("Authorization",access_token)
+		c.Set("Refresh", refresh_token)
 	}
 }
 

@@ -19,9 +19,18 @@ type User struct {
     ProfileImage     string    `gorm:"type:varchar(255)"`
     RefreshToken     string    `gorm:"type:text"`
     AccessToken      string    `gorm:"type:text"`
-    VerificationToken string    `gorm:"type:text"`
+    PasswordResetToken string  `gorm:"type:text"`
+    VerificationToken string   `gorm:"type:text"`
     CreatedAt        time.Time `gorm:"autoCreateTime"` // Automatically sets the time on insert
     UpdatedAt        time.Time `gorm:"autoUpdateTime"` // Automatically sets the time on update
+}
+
+type Token struct {
+	TokenID      uuid.UUID `gorm:"type:char(36);primaryKey"`
+	RefreshToken string    `gorm:"type:text"`
+	UserID       uuid.UUID  `gorm:"type:char(36)"`
+	CreatedAt    time.Time `gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
 }
 
 // DB_CONNECTION_STRING is the connection string of the database

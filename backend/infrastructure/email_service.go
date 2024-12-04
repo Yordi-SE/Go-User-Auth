@@ -56,7 +56,7 @@ func (emailService *EmailService) GetOTPEmailBody(otpCode string,file_name strin
         return "", err
     }
     body := string(content)
-    return strings.Replace(body, "{{VERIFICATION_URL}}", otpCode, -1), nil
+    return strings.Replace(body, "{{TOKEN_LINK}}", otpCode, -1), nil
 }
 
 func (emailServie *EmailService) GenerateOTP(length int) (string, error) {

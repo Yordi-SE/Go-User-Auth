@@ -3,7 +3,6 @@ package usecases
 import (
 	"log"
 	"mime/multipart"
-	models "user_authorization/domain"
 	errors "user_authorization/error"
 	"user_authorization/usecases/dto"
 	"user_authorization/usecases/interfaces"
@@ -25,15 +24,17 @@ type UserUsecase struct {
 	pwdService interfaces.HashingServiceI
 	jwtService interfaces.JWTServiceI
 	fileUploadManager interfaces.FileUploadManagerI
+	tokenRepository interfaces.TokenRepositoryI
 }
 
 // NewUserUsecase creates a new user usecase
-func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interfaces.JWTServiceI, pwdService interfaces.HashingServiceI,fileUpload interfaces.FileUploadManagerI) *UserUsecase {
+func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interfaces.JWTServiceI, pwdService interfaces.HashingServiceI,fileUpload interfaces.FileUploadManagerI, token interfaces.TokenRepositoryI) *UserUsecase {
 	return &UserUsecase{
 		userRepository: userRepository,
 		pwdService: pwdService,
 		jwtService: jwtService,
 		fileUploadManager: fileUpload,
+		tokenRepository: token,
 	}
 }
 
@@ -89,12 +90,20 @@ func (u *UserUsecase) GetUserById(userId string) (*dto.UserResponseDTO, *errors.
 
 // updateUser updates a user
 func (u *UserUsecase) UpdateUser(userId string, user *dto.UserUpdateDTO) *errors.CustomError {
-	userModel := models.User{
-		FullName:    user.FullName,
-		ProfileImage: user.ProfileImage,
-		PhoneNumber: user.PhoneNumber,
+	existingUser,err := u.userRepository.GetUserById(userId)
+	if err != nil {
+		return err
 	}
-	return u.userRepository.UpdateUser(userId, &userModel)
+	if user.FullName != "" {
+        existingUser.FullName = user.FullName
+    }
+    if user.PhoneNumber != "" {
+        existingUser.PhoneNumber = user.PhoneNumber
+    }
+    if user.ProfileImage != "" {
+        existingUser.ProfileImage = user.ProfileImage
+    }
+	return u.userRepository.SaveUserUpdate(existingUser)
 }
 
 //deleteUser deletes a user
@@ -104,7 +113,6 @@ func (u *UserUsecase) DeleteUser(userId string) *errors.CustomError {
 
 // Uploade profile image
 func (u *UserUsecase) UploadProfilePic(userID string,file *multipart.FileHeader) (string, *errors.CustomError) {
-
 
 	user , errs := u.userRepository.GetUserById(userID)
 
@@ -119,7 +127,7 @@ func (u *UserUsecase) UploadProfilePic(userID string,file *multipart.FileHeader)
 		}
 	
 	user.ProfileImage = SecureURL
-	errs = u.userRepository.UpdateUser(userID, user)
+	errs = u.userRepository.SaveUserUpdate(user)
 	if errs != nil {
 			deleteErr := u.fileUploadManager.DeleteFile(userID, file)
 			if deleteErr != nil {
