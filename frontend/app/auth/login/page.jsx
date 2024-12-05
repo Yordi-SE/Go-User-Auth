@@ -46,30 +46,76 @@ export default function SignIn({ searchParams }) {
     }
   };
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+    try {
+      e.preventDefault();
+      setIsLoading(true);
+      setError("");
 
-    const result = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`,
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
-    setIsLoading(false);
+      if (response.status == 200) {
+        const result = await signIn("credentials", {
+          access_token: response.data.access_token,
+          full_name: response.data.full_name,
+          email: response.data.email,
+          profile_image: response.data.profile_image,
+          phone_number: response.data.phone_number,
+          user_id: response.data.user_id,
+          role: response.data.role,
+          is_verified: response.data.is_verified,
+          refresh_token: response.data.refresh_token,
 
-    if (result?.ok) {
-      window.location.href = "/";
-    } else {
-      if (result?.error == "Email address is not verified.") {
-        setVerifyBtnVisibilitY(true);
+          redirect: false,
+        });
+        setIsLoading(false);
+
+        if (result?.ok) {
+          window.location.href = "/";
+        } else {
+          setError("Unauthorized: An unexpected error occurred.");
+        }
       }
-      setError(result?.error || "An unexpected error occurred.");
+    } catch (error) {
+      setIsLoading(false);
+
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          if (
+            error.response.data.error.Message ==
+            "Email address is not verified."
+          ) {
+            setVerifyBtnVisibilitY(true);
+          } else if (error.response.status === 400) {
+            setError("Bad Request: Missing or invalid data.");
+          } else if (error.response.status === 401) {
+            setError("Unauthorized: Incorrect email or password.");
+          } else if (error.response.status === 403) {
+            setError("Forbidden: Your account is inactive.");
+          } else if (error.response.status === 500) {
+            setError("Server Error: Please try again later.");
+          } else {
+            setError("An unexpected error occurred.");
+          }
+        } else if (error.request) {
+          setError("Network error: Unable to reach the server.");
+        }
+      } else {
+        setError("Unexpected error: " + String(error));
+      }
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 text-gray-800">
       <div className="w-full max-w-md p-8 space-y-4 bg-white rounded-lg shadow-lg">
         <h2 className="text-2xl font-bold text-center text-gray-800">
           Sign In

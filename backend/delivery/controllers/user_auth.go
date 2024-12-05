@@ -47,7 +47,6 @@ func (u *UserAuthController) RegisterUser(c *gin.Context)  {
 func (u *UserAuthController) Login(c *gin.Context) {
 	user := dto.UserLoginDTO{}
 	err := c.ShouldBindJSON(&user)
-	fmt.Println(user.Email,user.Password)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),400)})
 		return 
@@ -62,7 +61,6 @@ func (u *UserAuthController) Login(c *gin.Context) {
 	// fmt.Println(token)
 	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
 	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
-	fmt.Println("login",token.RefreshToken)
 
 	c.JSON(http.StatusOK,token)
 
@@ -86,6 +84,8 @@ func (u *UserAuthController)  Logout(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusBadRequest)})
 		return
 	}
+	c.SetCookie("access_token", "", -1, "/", "localhost", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "localhost", false, true)
 	c.JSON(http.StatusOK,gin.H{"message":"User Logged out successfully","status":http.StatusOK})
 }
 
@@ -93,6 +93,7 @@ func (u *UserAuthController)  Logout(c *gin.Context) {
 func (u *UserAuthController) CheckToken(c *gin.Context) {
 	defer c.Next()
 	value ,exists := c.Get("Refresh")
+
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
 		c.Abort()
@@ -104,6 +105,8 @@ func (u *UserAuthController) CheckToken(c *gin.Context) {
 		c.Abort()
 		return
 	}
+	fmt.Println("checktoken",token)
+
 	err := u.userAuthUseCase.CheckToken(token)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
@@ -177,8 +180,10 @@ func (u *UserAuthController) Callback(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusUnauthorized)})
 		return 
 	}
+
 	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
 	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
+
 	c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider")
 
 

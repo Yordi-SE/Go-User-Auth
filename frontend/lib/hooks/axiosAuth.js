@@ -16,9 +16,10 @@ const useAxiosAuth = () => {
             "Authorization"
           ] = `Bearer ${session?.user?.access_token}`;
         }
+        config.withCredentials = true;
         return config;
       },
-      
+
       (error) => Promise.reject(error)
     );
 

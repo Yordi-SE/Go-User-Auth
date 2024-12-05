@@ -27,7 +27,7 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	config.AllowOrigins = []string{"http://localhost:3000"}
 	config.AllowCredentials = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE","OPTIONS"}
-	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization","access-control-allow-origin","access-control-allow-headers","access-control-allow-methods","access-control-allow-credentials","Accept", "User-Agent", "Cache-Control", "Pragma"}
+	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization","access-control-allow-origin","access-control-allow-headers","access-control-allow-methods","access-control-allow-credentials","Accept", "User-Agent", "Cache-Control"}
 	config.ExposeHeaders = []string{"Content-Length"}
 	config.MaxAge = 12 * time.Hour
 	router.Use(cors.New(config))

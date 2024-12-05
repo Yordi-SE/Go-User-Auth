@@ -113,8 +113,7 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 		emailBody,errss := u.emailService.GetOTPEmailBody("localhost:8080/api/auth/user/verify_email?verification_token=" + token,"otp_template.html")
 		fmt.Println(errss)
 		// Send verification email
-		e := u.emailService.SendEmail(result.Email, "Email Verification", emailBody,"go_auth@gmail.com")
-		fmt.Println(e)
+		_ = u.emailService.SendEmail(result.Email, "Email Verification", emailBody,"go_auth@gmail.com")
 		newUser = dto.UserResponseDTO{
 			UserId: result.UserID,
 			FullName: result.FullName,
@@ -167,7 +166,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("refresh1",refreshToken)
+
 	token := dto.UserResponseDTO{
 		UserId: result.UserID,
 		FullName: result.FullName,
@@ -211,22 +210,21 @@ func (u *UserAuth) SignOut(token string) error {
 // Refresh token
 func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDTO, *errors.CustomError) {
 	// 
-	fmt.Println("refresh 1",refreshToken.RefreshToken)
 	token ,err := u.jwtService.ValidateRefreshToken(refreshToken.RefreshToken)
 	if err != nil {
 		return nil, err
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token claims", http.StatusUnauthorized)
 	}
 	email, ok := claims["email"].(string)
 	if !ok {
-		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token claims", http.StatusUnauthorized)
 	}
 	role, ok := claims["role"].(string)
 	if !ok {
-		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token claims", http.StatusUnauthorized)
 	}
 	user_id, ok := claims["user_id"].(string)
 
@@ -249,7 +247,6 @@ func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDT
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("refresh 2" ,result.RefreshToken)
 	if result.RefreshToken != refreshToken.RefreshToken {
 		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
@@ -523,6 +520,7 @@ func (u *UserAuth) CheckToken(token string) *errors.CustomError {
 	if err != nil {
 		return err
 	}
+	fmt.Println("checktoken 2",result.RefreshToken)
 	tokenString, err = u.jwtService.ValidateRefreshToken(result.RefreshToken)
 	if err != nil {
 		return err

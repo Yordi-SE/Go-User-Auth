@@ -20,43 +20,7 @@ export const options = {
       },
       async authorize(credentials) {
         if (credentials?.email && credentials?.password) {
-          let response;
-          try {
-            response = await axios.post(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`,
-              credentials
-            );
-
-            if (response.status == 200) {
-              return response.data;
-            }
-          } catch (error) {
-            console.log(error.response.data);
-            if (axios.isAxiosError(error)) {
-              if (error.response) {
-                if (
-                  error.response.data.error.Message ==
-                  "Email address is not verified."
-                ) {
-                  throw new Error("Email address is not verified.");
-                } else if (error.response.status === 400) {
-                  throw new Error("Bad Request: Missing or invalid data.");
-                } else if (error.response.status === 401) {
-                  throw new Error("Unauthorized: Incorrect email or password.");
-                } else if (error.response.status === 403) {
-                  throw new Error("Forbidden: Your account is inactive.");
-                } else if (error.response.status === 500) {
-                  throw new Error("Server Error: Please try again later.");
-                } else {
-                  throw new Error("An unexpected error occurred.");
-                }
-              } else if (error.request) {
-                throw new Error("Network error: Unable to reach the server.");
-              }
-            } else {
-              throw new Error("Unexpected error: " + String(error));
-            }
-          }
+          return credentials;
         } else {
           console.log(credentials.user);
           if (credentials?.access_token) {
