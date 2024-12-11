@@ -162,7 +162,7 @@ func (u *UserAuthController) Callback(c *gin.Context) {
 	result, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusBadRequest)})
+		c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider")
 		return
 	}
 	user.Email = result.Email
@@ -177,7 +177,7 @@ func (u *UserAuthController) Callback(c *gin.Context) {
 	token , errs := u.userAuthUseCase.HandleProviderSignIn(&user)
 
 	if errs != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusUnauthorized)})
+		c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider")
 		return 
 	}
 
