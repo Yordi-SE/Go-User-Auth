@@ -55,7 +55,7 @@ func (suite *UserAuthTest) SetupTest() {
 	suite.UserRepository = repositories.NewUserRepository(db)
 	suite.TokenRepository = repositories.NewTokenRepository(db)
 	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository)
-	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository)
+	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository, os.Getenv("TwO_FACTOR_SECRET"))
 }
 
 func (suite *UserAuthTest) TearDownTest() {

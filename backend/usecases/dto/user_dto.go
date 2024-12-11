@@ -22,6 +22,12 @@ type UserResponseDTO struct {
 	ProfileImage    string `json:"profile_image"`
 	RefreshToken    string `json:"refresh_token"`
 	AccessToken     string `json:"access_token"`
+	TwoFactorAuth   bool   `json:"two_factor_auth"`
+}
+
+type OtpDTO struct {
+	OTPCode string `json:"otp_code"`
+	Email string `json:"email"`
 }
 // UserLoginDTO struct
 type UserLoginDTO struct {

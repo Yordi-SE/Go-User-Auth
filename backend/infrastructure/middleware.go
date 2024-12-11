@@ -6,6 +6,7 @@ import (
 	"user_authorization/usecases/interfaces"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 // CORSMiddleware struct
@@ -18,7 +19,19 @@ func NewCORSMiddleware() *CORSMiddleware {
 }
 
 
+var limiter = rate.NewLimiter(1, 5)
 
+// Middleware to check the rate limit.
+func RateLimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+    if !limiter.Allow() {
+        c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})
+        c.Abort()
+        return
+    }
+    c.Next()
+}
+}
 
 
 
@@ -45,7 +58,7 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		token, errs := jwtService.ValidateAccessToken(access_token)
 		if errs != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": err,
+				"error": errors.NewCustomError(errs.Error(), http.StatusUnauthorized),
 			})
 			c.Abort()
 			return

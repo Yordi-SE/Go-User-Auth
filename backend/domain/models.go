@@ -20,6 +20,8 @@ type User struct {
     RefreshToken     string    `gorm:"type:text"`
     AccessToken      string    `gorm:"type:text"`
     PasswordResetToken string  `gorm:"type:text"`
+    TwoFactorAuth bool `gorm:"type:boolean;default:false"`
+    OTPCode string `gorm:"type:varchar(6)"`
     VerificationToken string   `gorm:"type:text"`
     CreatedAt        time.Time `gorm:"autoCreateTime"` // Automatically sets the time on insert
     UpdatedAt        time.Time `gorm:"autoUpdateTime"` // Automatically sets the time on update

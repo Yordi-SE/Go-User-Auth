@@ -59,7 +59,7 @@ func (u *UserUsecase) GetUsers(page int) ([]dto.UserResponseDTO, *errors.CustomE
 			IsVerified: user.IsVerified,
 			RefreshToken: user.RefreshToken,
 			AccessToken: user.AccessToken,
-
+			TwoFactorAuth: user.TwoFactorAuth,
 
 		}
 		userDTOs = append(userDTOs, userDTO)
@@ -84,6 +84,7 @@ func (u *UserUsecase) GetUserById(userId string) (*dto.UserResponseDTO, *errors.
 		IsVerified: user.IsVerified,
 		RefreshToken: user.RefreshToken,
 		AccessToken: user.AccessToken,
+		TwoFactorAuth: user.TwoFactorAuth,
 	}
 	return &userDTO, nil
 }

@@ -14,6 +14,7 @@ require (
 	github.com/pquerna/otp v1.4.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.29.0
+	golang.org/x/time v0.8.0
 	gopkg.in/mail.v2 v2.3.1
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12
