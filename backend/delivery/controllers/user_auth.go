@@ -58,27 +58,25 @@ func (u *UserAuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Message, http.StatusUnauthorized)})
 		return 
 	}
+	if token.TwoFactorAuth {
+		c.JSON(http.StatusOK, gin.H{"message": "Two factor authentication required", "data": token})
+		return
+	}
 	// fmt.Println(token)
 	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
 	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
 
-	c.JSON(http.StatusOK,token)
-
-
+	c.JSON(http.StatusOK,gin.H{"message":"login is successful", "data":token})
 }
 
 //Logout user
 func (u *UserAuthController)  Logout(c *gin.Context) {
-	value, exists := c.Get("Refresh")
-	if  !exists {
+	token, errr := c.Cookie("refresh_token")
+	if  errr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError("User not found",http.StatusBadRequest)})
 		return
 	}
-	token, ok := value.(string)
-	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError("User not found",http.StatusBadRequest)})
-		return		
-	}
+
 	errs := u.userAuthUseCase.SignOut(token)
 	if errs != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusBadRequest)})
@@ -92,20 +90,13 @@ func (u *UserAuthController)  Logout(c *gin.Context) {
 //check token validity middleware
 func (u *UserAuthController) CheckToken(c *gin.Context) {
 	defer c.Next()
-	value ,exists := c.Get("Refresh")
+	token ,errr := c.Cookie("refresh_token")
 
-	if !exists {
+	if errr != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
 		c.Abort()
 		return
 	}
-	token , ok := value.(string)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
-		c.Abort()
-		return
-	}
-	fmt.Println("checktoken",token)
 
 	err := u.userAuthUseCase.CheckToken(token)
 	if err != nil {
@@ -286,3 +277,61 @@ func (u *UserAuthController) ValidateToken(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, user)
 }
+
+// enable 2fa
+func (u *UserAuthController) EnableTwoFactorAuth(c *gin.Context) {
+	var email dto.EmailDTO
+	err := c.ShouldBindJSON(&email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusBadRequest)})
+		return
+	}
+
+
+	errs := u.userAuthUseCase.EnableTwoFactorAuthentication(email.Email)
+	if errs != nil {
+		c.JSON(errs.StatusCode, gin.H{"error": errors.NewCustomError(errs.Error(), errs.StatusCode)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Two factor authentication enabled successfully"}) 
+
+}
+
+// validate 2fa
+func (u *UserAuthController) ValidateTwoFactorAuth(c *gin.Context) {
+	var otp dto.OtpDTO
+	err := c.ShouldBindJSON(&otp)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusBadRequest)})
+		return
+	}
+
+	token,errs := u.userAuthUseCase.TwoFactorAuthenticationVerification(otp.Email, otp.OTPCode)
+	if errs != nil {
+		c.JSON(errs.StatusCode, gin.H{"error": errors.NewCustomError(errs.Error(), errs.StatusCode)})
+		return
+	}
+	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
+	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Two factor authentication enabled successfully", "data": token})
+
+}
+
+// resend otp
+func (u *UserAuthController) ResendOtp(c *gin.Context) {
+	var email dto.EmailDTO
+	err := c.ShouldBindJSON(&email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusBadRequest)})
+		return
+	}
+
+	errs := u.userAuthUseCase.ResendOTPCode(email.Email)
+	if errs != nil {
+		c.JSON(errs.StatusCode, gin.H{"error": errors.NewCustomError(errs.Error(), errs.StatusCode)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "OTP sent successfully"})
+
+}
+

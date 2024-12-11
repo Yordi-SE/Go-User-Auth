@@ -36,7 +36,9 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	jwtService := routerService.JwtService
 
 	userGroup := router.Group("/api/user")
+	userGroup.Use(infrastructure.RateLimitMiddleware())
 	userGroup.Use(infrastructure.AuthMiddleware(jwtService))
+
 	userGroup.Use(routerControllers.UserAuthController.CheckToken)
 
 	userGroup.GET("/get",infrastructure.AdminAuthMiddleware(jwtService),routerControllers.UserController.GetUsers)
@@ -45,14 +47,17 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	userGroup.DELETE("/delete/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.DeleteUser)
 	userGroup.POST("/upload/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UploadProfileImagefunc)
 
+
 	userGroup.GET("/validate_token",routerControllers.UserAuthController.ValidateToken)
 
 
 	authGroup := router.Group("/api/auth/user")
+	authGroup.Use(infrastructure.RateLimitMiddleware())
+
 
 	authGroup.POST("/register",routerControllers.UserAuthController.RegisterUser)
 	authGroup.POST("/login",routerControllers.UserAuthController.Login)
-	authGroup.GET("/logout",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.Logout)
+	authGroup.GET("/logout",routerControllers.UserAuthController.Logout)
 	authGroup.GET("/:provider",routerControllers.UserAuthController.SignInWithProvider)
 	authGroup.GET("/:provider/callback",routerControllers.UserAuthController.Callback)
 	authGroup.GET("/refresh",routerControllers.UserAuthController.RefreshToken)
@@ -60,7 +65,10 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	authGroup.POST("/resend_verification",routerControllers.UserAuthController.ResendVerificationEmail)
 	authGroup.POST("/forgot_password", routerControllers.UserAuthController.ForgotPassword)
 	authGroup.POST("/reset_password", routerControllers.UserAuthController.ResetPassword)
+	authGroup.POST("/Two_factor_auth", routerControllers.UserAuthController.ValidateTwoFactorAuth)
+	authGroup.POST("/Two_factor_auth/resend_otp", routerControllers.UserAuthController.ResendOtp)
 
+	authGroup.POST("/Two_factor_auth/switch",infrastructure.AuthMiddleware(jwtService), routerControllers.UserAuthController.EnableTwoFactorAuth)
 
 
 	router.Run(":" + os.Getenv("PORT"))

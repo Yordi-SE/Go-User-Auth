@@ -88,7 +88,7 @@ func main() {
 	UserRepo := repositories.NewUserRepository(db)
 	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager,TokenRepo)
 	userControllers := controllers.NewUserController(UserUsecase)
-	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService,TokenRepo)
+	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService,TokenRepo, os.Getenv("TWO_FACTOR_SECRET"))
 	userAuthController := controllers.NewUserAuthController(UserAuth,UserUsecase)
 	routerService := router.RouterService{
 		JwtService: jwtService,
