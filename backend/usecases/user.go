@@ -73,18 +73,18 @@ func (u *UserUsecase) GetUserById(userId string) (*dto.UserResponseDTO, *errors.
 	if err != nil {
 		return nil, err
 	}
-		userDTO := dto.UserResponseDTO{
-			UserId: user.UserID,
-			FullName:    user.FullName,
-			Email:       user.Email,
-			ProfileImage: user.ProfileImage,
-			PhoneNumber: user.PhoneNumber,
-			Role: user.Role,
-			IsProviderSignIn: user.IsProviderSignIn,
-			IsVerified: user.IsVerified,
-			RefreshToken: user.RefreshToken,
-			AccessToken: user.AccessToken,
-		}
+	userDTO := dto.UserResponseDTO{
+		UserId: user.UserID,
+		FullName:    user.FullName,
+		Email:       user.Email,
+		ProfileImage: user.ProfileImage,
+		PhoneNumber: user.PhoneNumber,
+		Role: user.Role,
+		IsProviderSignIn: user.IsProviderSignIn,
+		IsVerified: user.IsVerified,
+		RefreshToken: user.RefreshToken,
+		AccessToken: user.AccessToken,
+	}
 	return &userDTO, nil
 }
 
@@ -118,13 +118,14 @@ func (u *UserUsecase) UploadProfilePic(userID string,file *multipart.FileHeader)
 
 	if errs != nil {
 		return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
-		}
+	}
 
 
 	SecureURL, err := u.fileUploadManager.UploadFile(userID,file)
+
 	if err != nil {
 		return "", errors.NewCustomError(err.Error(), 500)
-		}
+	}
 	
 	user.ProfileImage = SecureURL
 	errs = u.userRepository.SaveUserUpdate(user)
@@ -134,8 +135,7 @@ func (u *UserUsecase) UploadProfilePic(userID string,file *multipart.FileHeader)
 				log.Printf("Error rolling back uploaded image: %v", deleteErr)
 			}
 		return "", errors.NewCustomError(errs.Error(), errs.StatusCode)
-		}
-	// Return the image url
+	}
 	return SecureURL, nil
 }
 

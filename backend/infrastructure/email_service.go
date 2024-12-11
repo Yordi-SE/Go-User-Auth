@@ -34,7 +34,7 @@ func (emailService *EmailService) SendEmail(email string, subject string, body s
 	message.SetHeader("Subject", subject)
 
 	// Set email body
-	message.SetBody("text/html", body)
+	 message.SetBody("text/html", body)
 
 	// Send the email
 	if err := emailService.dialer.DialAndSend(message); err != nil {

@@ -40,7 +40,7 @@ const AuthSuccess = () => {
       router.push("/");
     } catch (error) {
       console.error("Error during login:", error);
-      router.push("/auth/error");
+      router.push("/auth/backend-provider/error");
     }
   };
 

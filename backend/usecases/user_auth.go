@@ -17,7 +17,7 @@ import (
 type UserAuthI interface {
 	CheckToken(token string) *errors.CustomError
 	CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError)
-	SignOut(userId string) error
+	SignOut(token string) *errors.CustomError
 	SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.CustomError)
 	RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDTO, *errors.CustomError)
 	HandleProviderSignIn(user *models.User) (*dto.UserResponseDTO, *errors.CustomError) 
@@ -184,7 +184,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 }
 
 // Signout user
-func (u *UserAuth) SignOut(token string) error {
+func (u *UserAuth) SignOut(token string) *errors.CustomError {
 	tokenString ,err := u.jwtService.ValidateRefreshToken(token)
 	if err != nil {
 		return err
@@ -474,6 +474,7 @@ func (u *UserAuth) ResetPassword(password string, token string) *errors.CustomEr
 		return err
 	}
 	user.Password = password
+	user.PasswordResetToken = ""
 	err = u.userRepository.SaveUserUpdate(user)
 	if err != nil {
 		return err
