@@ -82,7 +82,7 @@ func main() {
 	}
 
 	fileUploadManager := infrastructure.NewFileUploadManager(cld)
-	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"))
+	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"), os.Getenv("OTP_SECRET"))
 	pwdService := infrastructure.NewHashingService()
 	TokenRepo := repositories.NewTokenRepository(db)
 	UserRepo := repositories.NewUserRepository(db)

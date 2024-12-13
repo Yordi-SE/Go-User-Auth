@@ -41,6 +41,8 @@ type JWTServiceI interface {
 	ValidateVerificationToken(token string) (*jwt.Token, *errors.CustomError)
 	ValidePasswordResetToken(token string) (*jwt.Token, *errors.CustomError)
 	GeneratePasswordResetToken(user *models.User) (string, *errors.CustomError)
+	GenerateOtpToken(user *models.User) (string, *errors.CustomError)
+	ValidateOtpToken(token string) (*jwt.Token, *errors.CustomError)
 }
 
 type FileUploadManagerI interface {

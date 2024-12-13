@@ -23,6 +23,7 @@ type UserResponseDTO struct {
 	RefreshToken    string `json:"refresh_token"`
 	AccessToken     string `json:"access_token"`
 	TwoFactorAuth   bool   `json:"two_factor_auth"`
+	OTPToken        string `json:"otp_token"`
 }
 
 type OtpDTO struct {

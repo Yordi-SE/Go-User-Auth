@@ -48,7 +48,7 @@ func (suite *UserAuthTest) SetupTest() {
     db.AutoMigrate(&models.User{})
 	db.AutoMigrate(&models.Token{})
 	suite.DB = db
-	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"))
+	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"))
 	suite.HashingService = infrastructure.NewHashingService()
 	suite.MockFileUploadManager = new(mocks.FileUploadManagerI)
 	suite.MockEmailService = new(mocks.EmailServiceI)

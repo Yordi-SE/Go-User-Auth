@@ -40,6 +40,7 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	userGroup.Use(infrastructure.AuthMiddleware(jwtService))
 
 	userGroup.Use(routerControllers.UserAuthController.CheckToken)
+	userGroup.Use(infrastructure.SecureHeadersMiddleware())
 
 	userGroup.GET("/get",infrastructure.AdminAuthMiddleware(jwtService),routerControllers.UserController.GetUsers)
 	userGroup.GET("/get/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,routerControllers.UserController.GetUserById)
@@ -74,3 +75,4 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	router.Run(":" + os.Getenv("PORT"))
 }
 
+ 

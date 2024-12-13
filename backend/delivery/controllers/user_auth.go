@@ -299,6 +299,13 @@ func (u *UserAuthController) EnableTwoFactorAuth(c *gin.Context) {
 
 // validate 2fa
 func (u *UserAuthController) ValidateTwoFactorAuth(c *gin.Context) {
+	otpToken := c.Query("otp_token")
+	if otpToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError("Invalid token",http.StatusBadRequest)})
+		return
+	}
+
+
 	var otp dto.OtpDTO
 	err := c.ShouldBindJSON(&otp)
 	if err != nil {
@@ -306,7 +313,7 @@ func (u *UserAuthController) ValidateTwoFactorAuth(c *gin.Context) {
 		return
 	}
 
-	token,errs := u.userAuthUseCase.TwoFactorAuthenticationVerification(otp.Email, otp.OTPCode)
+	token,errs := u.userAuthUseCase.TwoFactorAuthenticationVerification(otp.Email, otp.OTPCode, otpToken)
 	if errs != nil {
 		c.JSON(errs.StatusCode, gin.H{"error": errors.NewCustomError(errs.Error(), errs.StatusCode)})
 		return
@@ -319,6 +326,12 @@ func (u *UserAuthController) ValidateTwoFactorAuth(c *gin.Context) {
 
 // resend otp
 func (u *UserAuthController) ResendOtp(c *gin.Context) {
+	otpToken := c.Query("otp_token")
+	if otpToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError("Invalid token",http.StatusBadRequest)})
+		return
+	}
+
 	var email dto.EmailDTO
 	err := c.ShouldBindJSON(&email)
 	if err != nil {
@@ -326,7 +339,7 @@ func (u *UserAuthController) ResendOtp(c *gin.Context) {
 		return
 	}
 
-	errs := u.userAuthUseCase.ResendOTPCode(email.Email)
+	errs := u.userAuthUseCase.ResendOTPCode(email.Email,otpToken)
 	if errs != nil {
 		c.JSON(errs.StatusCode, gin.H{"error": errors.NewCustomError(errs.Error(), errs.StatusCode)})
 		return

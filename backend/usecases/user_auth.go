@@ -29,8 +29,8 @@ type UserAuthI interface {
 	ResetPassword(password string, token string) *errors.CustomError
 	ValidateToken(user_id string) (*dto.UserResponseDTO, *errors.CustomError)
 	EnableTwoFactorAuthentication(email string) *errors.CustomError
-	TwoFactorAuthenticationVerification(email string,otpCode string) (*dto.UserResponseDTO,*errors.CustomError)
-	ResendOTPCode(email string) *errors.CustomError
+	TwoFactorAuthenticationVerification(email string,otpCode string, otpToken string) (*dto.UserResponseDTO,*errors.CustomError)
+	ResendOTPCode(email string,otpToken string) *errors.CustomError	
 }
 
 //UserAuth struct
@@ -159,6 +159,10 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	}
 
 	if result.TwoFactorAuth {
+		otp_token, errr := u.jwtService.GenerateOtpToken(result)
+		if errr != nil {
+			return nil, err
+		}
 		SecretKey := u.TwoFactorSecretKey
 		fmt.Println("SecretKey",SecretKey)
 		otpCode, err := totp.GenerateCode(SecretKey, time.Now())
@@ -166,19 +170,14 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 			return nil, errors.NewCustomError(err.Error(), http.StatusInternalServerError)
 		}
 		result.OTPCode = otpCode
-		errr := u.userRepository.SaveUserUpdate(result)
+		errr = u.userRepository.SaveUserUpdate(result)
 		if errr != nil {
 			return nil, errr
 		}
-		emailBody,errs := u.emailService.GetOTPEmailBody(otpCode,"otp_verification.html")
-		if errs != nil {
-			return nil, errors.NewCustomError("Error getting email body", http.StatusInternalServerError)
-		}
+		emailBody,_ := u.emailService.GetOTPEmailBody(otpCode,"otp_verification.html")
 
-		e := u.emailService.SendEmail(result.Email, "Two Factor Authentication", emailBody,"go_auth@gmail.com")
-		if e != nil {
-			return nil, errors.NewCustomError("Error sending email", http.StatusInternalServerError)
-		}
+		_ = u.emailService.SendEmail(result.Email, "Two Factor Authentication", emailBody,"go_auth@gmail.com")
+
 		return &dto.UserResponseDTO{
 			TwoFactorAuth: result.TwoFactorAuth,
 			Email: result.Email,
@@ -188,6 +187,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 			IsProviderSignIn: result.IsProviderSignIn,
 			IsVerified: result.IsVerified,
 			ProfileImage: result.ProfileImage,
+			OTPToken: otp_token,
 		},nil
 	}
 	tokenId := uuid.New()
@@ -579,15 +579,30 @@ func (u *UserAuth) CheckToken(token string) *errors.CustomError {
 
 
 //2FA verification
-func (u *UserAuth) TwoFactorAuthenticationVerification(email string,otpCode string) (*dto.UserResponseDTO,*errors.CustomError) {
+func (u *UserAuth) TwoFactorAuthenticationVerification(email string,otpCode string, otpToken string) (*dto.UserResponseDTO,*errors.CustomError) {
 	// verify otpCode
-	result, err := u.userRepository.GetUserByEmail(email)
+
+	OTPToken, err := u.jwtService.ValidateOtpToken(otpToken)
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := OTPToken.Claims.(jwt.MapClaims)
+	if !ok || !OTPToken.Valid {
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	tokenEmail, ok := claims["user_email"].(string)
+	if !ok {
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	if tokenEmail != email {
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	result, err := u.userRepository.GetUserByEmail(tokenEmail)
 	if err != nil {
 		return  nil, err
 	}
 	valid := totp.Validate(otpCode, u.TwoFactorSecretKey)
 	if !valid {
-
 		return nil,errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
 	}
 
@@ -642,8 +657,23 @@ func (u *UserAuth) EnableTwoFactorAuthentication(email string) *errors.CustomErr
 }
 
 // Resend otp code
-func (u *UserAuth) ResendOTPCode(email string) *errors.CustomError {
-	result, err := u.userRepository.GetUserByEmail(email)
+func (u *UserAuth) ResendOTPCode(email string,otpToken string) *errors.CustomError {
+	OTPToken, err := u.jwtService.ValidateOtpToken(otpToken)
+	if err != nil {
+		return err
+	}
+	claims, ok := OTPToken.Claims.(jwt.MapClaims)
+	if !ok || !OTPToken.Valid {
+		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	tokenEmail, ok := claims["user_email"].(string)
+	if !ok {
+		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	if tokenEmail != email {
+		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	result, err := u.userRepository.GetUserByEmail(tokenEmail)
 	if err != nil {
 		return err
 

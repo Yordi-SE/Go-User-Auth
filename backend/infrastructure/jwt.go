@@ -14,16 +14,18 @@ type JWTManager struct {
 	RefreshTokenSecretKey string
 	VerificationTokenSecretKey string
 	PasswordResetSecretKey string
+	OTPVerificationSecretKey string
 }
 
 
 // NewJWTManager creates a new JWTManager
-func NewJWTManager(AcessSecret, RefreshSecret string, VerificationSecret string,PasswordResetSecretKey string) *JWTManager {
+func NewJWTManager(AcessSecret, RefreshSecret string, VerificationSecret string,PasswordResetSecretKey string, OTPVerificationSecretKey string) *JWTManager {
 	return &JWTManager{
 		AccessTokenSecretKey: AcessSecret,
 		RefreshTokenSecretKey: RefreshSecret,
 		VerificationTokenSecretKey: VerificationSecret,
 		PasswordResetSecretKey: PasswordResetSecretKey,
+		OTPVerificationSecretKey: OTPVerificationSecretKey,
 	}
 }
 
@@ -157,6 +159,37 @@ func (manager *JWTManager) ValidePasswordResetToken(token string) (*jwt.Token, *
 			return nil, errors.NewCustomError("Unexpected signing method", 500)
 		}
 		return []byte(manager.PasswordResetSecretKey), nil
+	})
+
+	if err != nil {
+		return nil, errors.NewCustomError(err.Error(), 500)
+	}
+
+	return parsedToken, nil
+}
+
+
+//Generate a otp token
+func (manager *JWTManager) GenerateOtpToken(user *models.User) (string, *errors.CustomError) {
+	claims := jwt.MapClaims{
+		"user_email": user.Email,
+		"exp": time.Now().Add(time.Minute * 15).Unix(),
+	}
+	otpToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := otpToken.SignedString([]byte(manager.OTPVerificationSecretKey))
+	if err != nil {
+		return "", errors.NewCustomError("Error generating otp token", 500)
+	}
+	return tokenString, nil
+} 
+
+//Validate otp token
+func (manager *JWTManager) ValidateOtpToken(token string) (*jwt.Token, *errors.CustomError) {
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.NewCustomError("Unexpected signing method", 500)
+		}
+		return []byte(manager.OTPVerificationSecretKey), nil
 	})
 
 	if err != nil {

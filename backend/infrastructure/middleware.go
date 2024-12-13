@@ -18,11 +18,21 @@ func NewCORSMiddleware() *CORSMiddleware {
 	return &CORSMiddleware{}
 }
 
+//secure headers middleware
+func SecureHeadersMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+        c.Writer.Header().Set("X-Frame-Options", "DENY")
+        c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+        c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'")
+        c.Next()
+    }
+}
 
 var limiter = rate.NewLimiter(1, 5)
 
 // Middleware to check the rate limit.
-func RateLimitMiddleware() gin.HandlerFunc {
+func RateLimitMiddleware()  gin.HandlerFunc {
 	return func(c *gin.Context) {
     if !limiter.Allow() {
         c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})

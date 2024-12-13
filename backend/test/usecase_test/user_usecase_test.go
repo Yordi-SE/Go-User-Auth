@@ -49,7 +49,7 @@ func (suite *UserUseCaseTestSuite) SetupTest() {
     db.AutoMigrate(&models.User{})
 	db.AutoMigrate(&models.Token{})
 	suite.DB = db
-	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"))
+	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"))
 	suite.HashingService = infrastructure.NewHashingService()
 	suite.MockFileUploadManager = new(mocks.FileUploadManagerI)
 	suite.MockEmailService = new(mocks.EmailServiceI)
@@ -93,7 +93,7 @@ func (suite *UserUseCaseTestSuite) TestGetUser() {
             return strings.HasPrefix(arg, "localhost:8080") 
         }),
         mock.MatchedBy(func(arg string) bool {
-            return arg == "otp_template.html" 
+            return arg == "email_verification.html" 
         }),
     ).Return("email body", nil) // Return expected email body
 
@@ -174,7 +174,7 @@ func (suite *UserUseCaseTestSuite) TestGetUserById() {
             return strings.HasPrefix(arg, "localhost:8080") 
         }),
         mock.MatchedBy(func(arg string) bool {
-            return arg == "otp_template.html" 
+            return arg == "email_verification.html" 
         }),
     ).Return("email body", nil) // Return expected email body
 
@@ -248,7 +248,7 @@ func (suite *UserUseCaseTestSuite) TestUpdateUser() {
             return strings.HasPrefix(arg, "localhost:8080") 
         }),
         mock.MatchedBy(func(arg string) bool {
-            return arg == "otp_template.html" 
+            return arg == "email_verification.html" 
         }),
     ).Return("email body", nil) // Return expected email body
 
@@ -331,7 +331,7 @@ func (suite *UserUseCaseTestSuite) TestDeleteUser() {
             return strings.HasPrefix(arg, "localhost:8080") 
         }),
         mock.MatchedBy(func(arg string) bool {
-            return arg == "otp_template.html" 
+            return arg == "email_verification.html" 
         }),
     ).Return("email body", nil) // Return expected email body
 
@@ -396,7 +396,7 @@ func (suite *UserUseCaseTestSuite) TestUploadProfilePic() {
             return strings.HasPrefix(arg, "localhost:8080") 
         }),
         mock.MatchedBy(func(arg string) bool {
-            return arg == "otp_template.html" 
+            return arg == "email_verification.html" 
         }),
     ).Return("email body", nil) // Return expected email body
 
