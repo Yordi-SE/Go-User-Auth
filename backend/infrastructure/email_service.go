@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"path/filepath"
 	"strings"
 
 	gomail "gopkg.in/mail.v2"
@@ -45,13 +44,9 @@ func (emailService *EmailService) SendEmail(email string, subject string, body s
 }
 
 func (emailService *EmailService) GetOTPEmailBody(otpCode string,file_name string) (string, error) {
-	dir, err := os.Getwd() // Get the current working directory
-	if err != nil {
-		panic(err) // Handle error appropriately in production
-	}
-	templatePath := filepath.Join(dir, "templates", file_name)
 
-    content, err := os.ReadFile(templatePath) 
+
+    content, err := os.ReadFile("/app/delivery/templates/"+file_name) 
     if err != nil {
         return "", err
     }

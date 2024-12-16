@@ -64,15 +64,15 @@ export default function SignIn({ searchParams }) {
 
       if (response.status == 200) {
         const result = await signIn("credentials", {
-          access_token: response.data.access_token,
-          full_name: response.data.full_name,
-          email: response.data.email,
-          profile_image: response.data.profile_image,
-          phone_number: response.data.phone_number,
-          user_id: response.data.user_id,
-          role: response.data.role,
-          is_verified: response.data.is_verified,
-          refresh_token: response.data.refresh_token,
+          access_token: response.data.data.access_token,
+          full_name: response.data.data.full_name,
+          email: response.data.data.email,
+          profile_image: response.data.data.profile_image,
+          phone_number: response.data.data.phone_number,
+          user_id: response.data.data.user_id,
+          role: response.data.data.role,
+          is_verified: response.data.data.is_verified,
+          refresh_token: response.data.data.refresh_token,
 
           redirect: false,
         });

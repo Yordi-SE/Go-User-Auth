@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 	models "user_authorization/domain"
 	"user_authorization/infrastructure"
 	"user_authorization/repositories"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/mock"
@@ -268,6 +270,47 @@ func (suite *UserAuthTest) TestLoginUser_NotVerified() {
 	})
 	suite.Equal(err.Error(),"User is not verified")
 	suite.Equal(err.StatusCode, 401)
+}
+
+//user 2fa enabled
+func (suite *UserAuthTest) TestLoginUser_TwoFactorAuth() {
+	password , errr := suite.HashingService.HashPassword("password")
+	if errr != nil {
+		suite.Fail("Failed to hash password")
+	}
+	user := models.User{
+		FullName:          "Jane Doe",
+		Email:            "jane@gmail.com",
+		IsProviderSignIn: false,
+		IsVerified: true,
+		TwoFactorAuth: true,
+		PhoneNumber:       "1234567890",
+		Password: password,
+	}
+	_,err  := suite.UserRepository.CreateUser(&user)
+	if err != nil {
+		suite.Fail("Failed to create user")
+	}
+	token, err := suite.UserAuthCase.SignIn(&dto.UserLoginDTO{
+		Email:    user.Email,
+		Password: "password",
+	})
+	if err != nil {
+		suite.Fail("Failed to login user")
+	}
+	suite.Equal(token.AccessToken,"")
+	suite.Equal(token.RefreshToken,"")
+	suite.Equal(token.Email, user.Email)
+	suite.Equal(token.FullName, user.FullName)
+	suite.Equal(token.PhoneNumber, user.PhoneNumber)
+	suite.Equal(token.IsVerified, user.IsVerified)
+	suite.Equal(token.IsProviderSignIn, user.IsProviderSignIn)
+	suite.Equal(token.Role, "user")
+	suite.Equal(token.IsProviderSignIn, false)
+	suite.Equal(token.IsVerified, true)
+	suite.Equal(token.TwoFactorAuth, true)
+	
+
 }
 
 //refresh token
@@ -554,7 +597,46 @@ func (suite *UserAuthTest) TestSignOut() {
 	suite.Equal(err.StatusCode, 404)
 }
 
+// two factor auth
+func (suite *UserAuthTest) TestTwoFactorAuth() {
+	user := models.User{
+		FullName:          "Jane Doe",
+		Email:            "jane@gmail.com",
+		IsVerified:        true,
+		IsProviderSignIn:  false,
+		PhoneNumber:       "1234567890",
+		TwoFactorAuth: true,
+	}
+	_,err  := suite.UserRepository.CreateUser(&user)
+	if err != nil {
+		suite.Fail("Failed to create user")
+	}
+	otp_token, errr := suite.JwtService.GenerateOtpToken(&user)
+	if errr != nil {
+		suite.Fail("Failed to generate otp token")
+	}
+	SecretKey := suite.UserAuthCase.TwoFactorSecretKey
+	otpCode, errs := totp.GenerateCode(SecretKey, time.Now())
+	if errs != nil {
+		suite.Fail("Failed to generate otp code")
+	}
+	token, err := suite.UserAuthCase.TwoFactorAuthenticationVerification(user.Email,otpCode,otp_token)
+	if err != nil {
+		suite.Fail("Failed to verify otp code")
+	}
+	suite.NotEmpty(token.AccessToken)
+	suite.NotEmpty(token.RefreshToken)
+	suite.Equal(token.Email, user.Email)
+	suite.Equal(token.FullName, user.FullName)
+	suite.Equal(token.PhoneNumber, user.PhoneNumber)
+	suite.Equal(token.IsVerified, user.IsVerified)
+	suite.Equal(token.IsProviderSignIn, user.IsProviderSignIn)
+	suite.Equal(token.Role, "user")
+	suite.Equal(token.IsProviderSignIn, false)
+	suite.Equal(token.IsVerified, true)
+	suite.Equal(token.TwoFactorAuth, true)
 
+}
 
 func TestUserUseAuthTestSuite(t *testing.T) {
 	suite.Run(t, new(UserUseCaseTestSuite))

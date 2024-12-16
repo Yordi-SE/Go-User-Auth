@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	errorss "errors"
+	"fmt"
 	models "user_authorization/domain"
 
 	"gorm.io/gorm"
@@ -54,7 +54,7 @@ func (r *UserRepository) GetUsers(page int) ([]models.User, *errors.CustomError)
 func (r *UserRepository) GetUserById(userId string) (*models.User, *errors.CustomError) {
     var user models.User
     if err := r.db.Table("users").Where("user_id = ?", userId).First(&user).Error; err != nil {
-        if errorss.Is(err,gorm.ErrRecordNotFound) {
+        if err == gorm.ErrRecordNotFound {
             return nil, errors.NewCustomError("user not found", 404)
         }
         return nil, errors.NewCustomError("error getting user", 500)
@@ -66,8 +66,9 @@ func (r *UserRepository) GetUserById(userId string) (*models.User, *errors.Custo
 func (r *UserRepository) GetUserByEmail(email string) (*models.User, *errors.CustomError) {
     user := models.User{}
     if err := r.db.Table("users").Where("email = ?", email).First(&user).Error; err != nil {
-        if errorss.Is(err, gorm.ErrRecordNotFound){
-            
+            fmt.Println(err)
+
+        if err == gorm.ErrRecordNotFound {
             return nil, errors.NewCustomError("user not found", 404)
         }
         return nil, errors.NewCustomError("error getting user", 500)

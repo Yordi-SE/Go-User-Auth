@@ -31,7 +31,7 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	config.ExposeHeaders = []string{"Content-Length"}
 	config.MaxAge = 12 * time.Hour
 	router.Use(cors.New(config))
-	router.LoadHTMLFiles("templates/verification_success.html", "templates/verification_fail.html")
+	router.LoadHTMLFiles("/app/delivery/templates/verification_success.html", "/app/delivery/templates/verification_fail.html")
 
 	jwtService := routerService.JwtService
 
@@ -54,6 +54,7 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 
 	authGroup := router.Group("/api/auth/user")
 	authGroup.Use(infrastructure.RateLimitMiddleware())
+	authGroup.Use(infrastructure.SecureHeadersMiddleware())
 
 
 	authGroup.POST("/register",routerControllers.UserAuthController.RegisterUser)

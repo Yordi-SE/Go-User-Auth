@@ -169,7 +169,7 @@ func (manager *JWTManager) ValidePasswordResetToken(token string) (*jwt.Token, *
 }
 
 
-//Generate a otp token
+//Generate a  otp token
 func (manager *JWTManager) GenerateOtpToken(user *models.User) (string, *errors.CustomError) {
 	claims := jwt.MapClaims{
 		"user_email": user.Email,

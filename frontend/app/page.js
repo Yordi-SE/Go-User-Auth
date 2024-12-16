@@ -21,7 +21,7 @@ const HomePage = () => {
         <div className="bg-white shadow-lg rounded-lg p-8 max-w-md w-full text-center">
           <div className="mb-6">
             <Image
-              src={session.user?.profile_image || "/default-avatar.png"}
+              src={session.user?.profile_image || "/default-avatar.jpg"}
               width={100}
               height={100}
               alt="User Avatar"

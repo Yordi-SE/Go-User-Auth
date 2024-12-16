@@ -18,7 +18,7 @@ func NewCORSMiddleware() *CORSMiddleware {
 	return &CORSMiddleware{}
 }
 
-//secure headers middleware
+//secure  headers middleware
 func SecureHeadersMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         c.Writer.Header().Set("X-Content-Type-Options", "nosniff")

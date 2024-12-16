@@ -141,7 +141,7 @@ func (u *UserAuthController) SignInWithProvider(c *gin.Context) {
 }
 
 
-// Handle google callback
+// Handle  google callback
 func (u *UserAuthController) Callback(c *gin.Context) {
 	user := models.User{}
 	provider := c.Param("provider")

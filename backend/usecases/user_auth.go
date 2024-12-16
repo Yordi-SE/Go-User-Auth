@@ -1,7 +1,6 @@
 package usecases
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 	models "user_authorization/domain"
@@ -58,7 +57,7 @@ func NewUserAuth(userRepository interfaces.UserRepositoryI, pwdService interface
 
 
 
-// CreateUser creates a new user
+// CreateUser  creates a new user
 func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError) {
 	existingUser, err := u.userRepository.GetUserByEmail(user.Email)
 	var newUser dto.UserResponseDTO
@@ -118,8 +117,8 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 			return nil, errs
 		}
 			// Get email body
-		emailBody,errss := u.emailService.GetOTPEmailBody("localhost:8080/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
-		fmt.Println(errss)
+		emailBody,_ := u.emailService.GetOTPEmailBody("localhost:8080/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
+		//.Println(errss)
 		// Send verification email
 		_ = u.emailService.SendEmail(result.Email, "Email Verification", emailBody,"go_auth@gmail.com")
 		newUser = dto.UserResponseDTO{
@@ -149,7 +148,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(result.Email,user.Email, result.IsVerified)
+	//.Println(result.Email,user.Email, result.IsVerified)
 
 	if !result.IsVerified {
 		return nil, errors.NewCustomError("Email address is not verified.", 400)
@@ -164,7 +163,6 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 			return nil, err
 		}
 		SecretKey := u.TwoFactorSecretKey
-		fmt.Println("SecretKey",SecretKey)
 		otpCode, err := totp.GenerateCode(SecretKey, time.Now())
 		if err != nil {
 			return nil, errors.NewCustomError(err.Error(), http.StatusInternalServerError)
@@ -187,7 +185,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 			IsProviderSignIn: result.IsProviderSignIn,
 			IsVerified: result.IsVerified,
 			ProfileImage: result.ProfileImage,
-			OTPToken: otp_token,
+			OTPToken: otp_token, 
 		},nil
 	}
 	tokenId := uuid.New()
@@ -197,7 +195,6 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	}
 	result.AccessToken = accessToken
 	result.RefreshToken = refreshToken
-	fmt.Println(tokenId)
 	tokenModel := models.Token{
 		TokenID: tokenId,
 		UserID: result.UserID,
@@ -449,12 +446,13 @@ func (u *UserAuth) ResendVerificationEmail(email string) *errors.CustomError {
 	// Get email body
 	emailBody,errs := u.emailService.GetOTPEmailBody("localhost:8080/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
 	if errs != nil {
-		return errors.NewCustomError("Error getting email body", http.StatusInternalServerError)
+		//.Println(errs)
+		return errors.NewCustomError(errs.Error(), http.StatusInternalServerError)
 	}
 	// Send verification email
 	e := u.emailService.SendEmail(user.Email, "Email Verification", emailBody,"go_auth@gmail.com")
 	if e != nil {
-		return errors.NewCustomError("Error sending email", http.StatusInternalServerError)
+		return errors.NewCustomError(e.Error(), http.StatusInternalServerError)
 	}
 	return nil
 }
