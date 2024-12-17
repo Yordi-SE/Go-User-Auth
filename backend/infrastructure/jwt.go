@@ -109,6 +109,7 @@ func (manager *JWTManager) FindClaim(token *jwt.Token) (jwt.MapClaims, bool) {
 func (manager *JWTManager) GenerateVerificationToken(user *models.User) (string, *errors.CustomError) {
 	claims := jwt.MapClaims{
 		"user_id": user.UserID.String(),
+		"email": user.Email,
 		"exp": time.Now().Add(time.Hour * 1).Unix(),
 	}
 
@@ -141,6 +142,7 @@ func (manager *JWTManager) ValidateVerificationToken(token string) (*jwt.Token, 
 func (manager *JWTManager) GeneratePasswordResetToken(user *models.User) (string, *errors.CustomError) {
 	claims := jwt.MapClaims{
 		"user_id": user.UserID.String(),
+		"email": user.Email,
 		"exp": time.Now().Add(time.Hour * 1).Unix(),
 	}
 	passwordResetToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

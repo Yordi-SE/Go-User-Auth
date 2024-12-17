@@ -1,8 +1,11 @@
 package usecase_test
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/mock"
@@ -35,6 +39,7 @@ type UserAuthTest struct {
 	MockEmailService      *mocks.EmailServiceI
 	UserUsecase *usecases.UserUsecase
 	UserAuthCase *usecases.UserAuth
+	cacheRepo *infrastructure.CacheRepo
 	DB *gorm.DB
 }
 
@@ -49,15 +54,34 @@ func (suite *UserAuthTest) SetupTest() {
 	}
     db.AutoMigrate(&models.User{})
 	db.AutoMigrate(&models.Token{})
+	redisClient := redis.NewClient(&redis.Options{
+        Addr:	  "localhost:6379",
+        Password: "", // No password set
+        DB:		  0,  // Use default DB
+        Protocol: 2,  // Connection protocol
+    })
+	ctx := context.Background()
+
+	err = redisClient.Set(ctx, "foo", "bar", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	val, err := redisClient.Get(ctx, "foo").Result()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("foo", val)
 	suite.DB = db
 	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"))
 	suite.HashingService = infrastructure.NewHashingService()
 	suite.MockFileUploadManager = new(mocks.FileUploadManagerI)
 	suite.MockEmailService = new(mocks.EmailServiceI)
+	suite.cacheRepo = infrastructure.NewCacheRepo(redisClient,context.Background())
 	suite.UserRepository = repositories.NewUserRepository(db)
 	suite.TokenRepository = repositories.NewTokenRepository(db)
-	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository)
-	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository, os.Getenv("TwO_FACTOR_SECRET"))
+	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository, suite.cacheRepo)
+	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository, os.Getenv("TwO_FACTOR_SECRET"),suite.cacheRepo)
 }
 
 func (suite *UserAuthTest) TearDownTest() {
@@ -86,7 +110,7 @@ func (suite *UserAuthTest) TestCreateUser() {
             return strings.HasPrefix(arg, "localhost:8080") 
         }),
         mock.MatchedBy(func(arg string) bool {
-            return arg == "otp_template.html" 
+            return arg == "email_verification.html" 
         }),
     ).Return("email body", nil)
     suite.MockEmailService.On(
@@ -150,6 +174,7 @@ func (suite *UserAuthTest) TestLoginUser() {
 		suite.Fail("Failed to hash password")
 	}
 	user := models.User{
+		UserID: uuid.New(),
 		FullName:          "Jane Doe",
 		Email:            "jane@example.com",
 		IsVerified:        true,
@@ -189,13 +214,12 @@ func (suite *UserAuthTest) TestLoginUser() {
 
 	}
 
-	tokenResponse, err := suite.TokenRepository.GetTokenById(tokenId)
+	tokenResponse, err := suite.cacheRepo.Get(user.UserID.String() + tokenId)
 	if err != nil {
 		suite.Fail("Failed to get token")
 	}
 
-	suite.Equal(tokenResponse.UserID, user.UserID)
-	suite.Equal(tokenResponse.RefreshToken, response.RefreshToken)
+	suite.Equal(tokenResponse, response.RefreshToken)
 
 	suite.Equal(response.Email, user.Email)
 	suite.Equal(response.FullName, user.FullName)
@@ -216,7 +240,7 @@ func (suite *UserAuthTest) TestLoginUser_NotExist() {
 		Email:    "jan@gmail.com",
 		Password: "password",
 	})
-	suite.Equal(err.Error(),"User does not exist")
+	suite.Equal(err.Error(),"user not found")
 	suite.Equal(err.StatusCode, 404)
 }
 
@@ -268,7 +292,7 @@ func (suite *UserAuthTest) TestLoginUser_NotVerified() {
 		Email:    user.Email,
 		Password: "password",
 	})
-	suite.Equal(err.Error(),"User is not verified")
+	suite.Equal(err.Error(),"Email address is not verified.")
 	suite.Equal(err.StatusCode, 401)
 }
 
@@ -291,6 +315,25 @@ func (suite *UserAuthTest) TestLoginUser_TwoFactorAuth() {
 	if err != nil {
 		suite.Fail("Failed to create user")
 	}
+	otpRegex := regexp.MustCompile(`^\d{6}$`)
+
+   suite.MockEmailService.On(
+        "GetOTPEmailBody",
+		mock.MatchedBy(func(arg string) bool {
+			// Check if the OTP matches the 6-digit pattern
+			return otpRegex.MatchString(arg)
+		}),
+        mock.MatchedBy(func(arg string) bool {
+            return arg == "otp_verification.html" 
+        }),
+    ).Return("email body", nil)
+    suite.MockEmailService.On(
+        "SendEmail",
+        user.Email,          
+        "Two Factor Authentication", 
+        "email body",        
+        "go_auth@gmail.com", 
+    ).Return(nil)
 	token, err := suite.UserAuthCase.SignIn(&dto.UserLoginDTO{
 		Email:    user.Email,
 		Password: "password",
@@ -315,14 +358,20 @@ func (suite *UserAuthTest) TestLoginUser_TwoFactorAuth() {
 
 //refresh token
 func (suite *UserAuthTest) TestRefreshToken() {
+	Password, err := suite.HashingService.HashPassword("password")
+	if err != nil {
+		suite.Fail("Failed to hash password")
+	}
 	user := models.User{
+		UserID: uuid.New(),
 		FullName:          "Jane Doe",
 		Email:            "jan@gmail.com",
 		IsVerified:        true,
 		IsProviderSignIn:  false,
 		PhoneNumber:       "1234567890",
+		Password: Password,
 	}
-	_,err  := suite.UserRepository.CreateUser(&user)
+	_,err  = suite.UserRepository.CreateUser(&user)
 	if err != nil {
 		suite.Fail("Failed to create user")
 	}
@@ -333,14 +382,8 @@ func (suite *UserAuthTest) TestRefreshToken() {
 	if err != nil {
 		suite.Fail("Failed to login user")
 	}
-	refreshToken := response.RefreshToken
-	newResponse, err := suite.UserAuthCase.RefreshToken(&dto.RefreshTokenDTO{
-		RefreshToken: refreshToken,
-	})
-	if err != nil {
-		suite.Fail("Failed to refresh token")
-	}
-	token ,err := suite.JwtService.ValidateRefreshToken(refreshToken)
+	//.Println(response)
+	token ,err := suite.JwtService.ValidateRefreshToken(response.RefreshToken)
 	if err != nil {
 		suite.Fail("Failed to validate refresh token")
 
@@ -356,15 +399,22 @@ func (suite *UserAuthTest) TestRefreshToken() {
 		suite.Fail("Failed to find claim")
 
 	}
+	refreshToken := response.RefreshToken
 
-	tokenResponse, err := suite.TokenRepository.GetTokenById(tokenId)
+	newResponse, err := suite.UserAuthCase.RefreshToken(&dto.RefreshTokenDTO{
+		RefreshToken: refreshToken,
+	})
+	if err != nil {
+		suite.Fail("Failed to refresh token")
+	}
+
+
+	tokenResponse, err := suite.cacheRepo.Get(user.UserID.String() + tokenId)
 	if err != nil {
 		suite.Fail("Failed to get token")
 	}
 	
-	suite.Equal(tokenResponse.TokenID, tokenId)
-	suite.Equal(tokenResponse.UserID, user.UserID)
-	suite.Equal(tokenResponse.RefreshToken, refreshToken)
+	suite.Equal(tokenResponse, refreshToken)
 
 	
 
@@ -393,21 +443,21 @@ func (suite *UserAuthTest) TestResetPassword() {
 	if err != nil {
 		suite.Fail("Failed to generate password reset token")
 	}
-	user.PasswordResetToken = PasswordResetToken
 	_,err  = suite.UserRepository.CreateUser(&user)
 	if err != nil {
 		suite.Fail("Failed to create user")
 	}
-
+	err = suite.cacheRepo.Set(user.Email + "password_reset_token",PasswordResetToken, time.Minute * 30)
 	err = suite.UserAuthCase.ResetPassword("newpassword", PasswordResetToken)
 	if err != nil {
-		suite.Fail("Failed to reset password")
+		suite.Fail("Failed to reset password",err)
 	}
 	userResponse, err := suite.UserRepository.GetUserById(user.UserID.String())
 	if err != nil {
 		suite.Fail("Failed to get user")
 	}
-	suite.True(suite.HashingService.ComparePassword("newpassword", userResponse.Password))
+	//.Println(userResponse)
+	suite.True(suite.HashingService.ComparePassword(userResponse.Password,"newpassword"))
 	
 }
 
@@ -416,7 +466,6 @@ func (suite *UserAuthTest) TestVerifyEmail() {
 
 	user := models.User{
 		UserID: uuid.New(),
-VerificationToken : "token",
 		FullName:          "Jane Doe",
 		Email:            "jan@gmail.com",
 		IsVerified:        false,
@@ -430,7 +479,10 @@ VerificationToken : "token",
 		suite.Fail("Failed to generate verification token")
 	}
 
-	user.VerificationToken = VerificationToken
+	err = suite.cacheRepo.Set(user.Email + "verification_token",VerificationToken, time.Minute * 30)
+	if err != nil {
+		suite.Fail("Failed to set cache")
+	}
 	_,err  = suite.UserRepository.CreateUser(&user)
 
 	if err != nil {
@@ -439,13 +491,14 @@ VerificationToken : "token",
 
 	err = suite.UserAuthCase.VerifyEmail(VerificationToken)
 	if err != nil {
-		suite.Fail("Failed to verify email")
+		suite.Fail("Failed to verify email",err)
 	}
 	userResponse, err := suite.UserRepository.GetUserById(user.UserID.String())
 
 	if err != nil {
 		suite.Fail("Failed to get user")
 	}
+	fmt.Println(userResponse.IsVerified, "is verified")
 	suite.True(userResponse.IsVerified)
 }
 
@@ -453,6 +506,7 @@ VerificationToken : "token",
 //handle provider sign in
 func (suite *UserAuthTest) TestProviderSignIn() {
 	user := models.User{
+		UserID: uuid.New(),
 		FullName:          "Jane Doe",
 		Email:            "jan@gmail.com",
 		IsVerified:        true,
@@ -482,7 +536,7 @@ func (suite *UserAuthTest) TestProviderSignIn() {
 
 	}
 
-	tokenResponse, err := suite.TokenRepository.GetTokenById(tokenId)
+	tokenResponse, err := suite.cacheRepo.Get(user.UserID.String() + tokenId)
 	if err != nil {
 		suite.Fail("Failed to get token")
 	}
@@ -492,8 +546,7 @@ func (suite *UserAuthTest) TestProviderSignIn() {
 		suite.Fail("Failed to get user")
 	}
 
-	suite.Equal(tokenResponse.UserID, userResponse.UserID)
-	suite.Equal(tokenResponse.RefreshToken, response.RefreshToken)
+	suite.Equal(tokenResponse, response.RefreshToken)
 
 	suite.Equal(response.Email, userResponse.Email)
 	suite.Equal(response.FullName, userResponse.FullName)
@@ -620,6 +673,11 @@ func (suite *UserAuthTest) TestTwoFactorAuth() {
 	if errs != nil {
 		suite.Fail("Failed to generate otp code")
 	}
+	err = suite.cacheRepo.Set(user.Email + "otp_token",otp_token, time.Minute * 30)
+	if err != nil {
+		suite.Fail("Failed to set cache")
+	}
+	err = suite.cacheRepo.Set(user.Email + "otp_code",otpCode, time.Minute * 30)
 	token, err := suite.UserAuthCase.TwoFactorAuthenticationVerification(user.Email,otpCode,otp_token)
 	if err != nil {
 		suite.Fail("Failed to verify otp code")
@@ -639,5 +697,5 @@ func (suite *UserAuthTest) TestTwoFactorAuth() {
 }
 
 func TestUserUseAuthTestSuite(t *testing.T) {
-	suite.Run(t, new(UserUseCaseTestSuite))
+	suite.Run(t, new(UserAuthTest))
 }

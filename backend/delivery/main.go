@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"user_authorization/infrastructure"
 	"user_authorization/repositories"
 	"user_authorization/usecases"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/cloudinary/cloudinary-go"
 	_ "github.com/go-sql-driver/mysql"
@@ -49,6 +52,17 @@ func main() {
 	}
 
 	fmt.Println("Successfully connected to database")
+	fmt.Println(os.Getenv("REDIS_PASSWORD"))
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+		Protocol: 2,
+	})
+	_, err = redisClient.Ping(context.Background()).Result()
+	if err != nil {
+		log.Fatal(err)
+	}
 	GMAIL_SMPT := os.Getenv("GMAIL_SMPT")
 	GMAIL_USER_EMAIL := os.Getenv("GMAIL_USER_EMAIL")
 	GMAIL_USER_PASSWORD := os.Getenv("GMAIL_USER_PASSWORD")
@@ -80,15 +94,16 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to cloudinary", err)
 	}
+	cacheRepo := infrastructure.NewCacheRepo(redisClient, context.Background())
 
 	fileUploadManager := infrastructure.NewFileUploadManager(cld)
 	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"), os.Getenv("OTP_SECRET"))
 	pwdService := infrastructure.NewHashingService()
 	TokenRepo := repositories.NewTokenRepository(db)
 	UserRepo := repositories.NewUserRepository(db)
-	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager,TokenRepo)
+	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager,TokenRepo,cacheRepo)
 	userControllers := controllers.NewUserController(UserUsecase)
-	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService,TokenRepo, os.Getenv("TWO_FACTOR_SECRET"))
+	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService,TokenRepo, os.Getenv("TWO_FACTOR_SECRET"),cacheRepo)
 	userAuthController := controllers.NewUserAuthController(UserAuth,UserUsecase)
 	routerService := router.RouterService{
 		JwtService: jwtService,

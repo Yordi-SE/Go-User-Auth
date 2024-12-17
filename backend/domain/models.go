@@ -17,14 +17,9 @@ type User struct {
     IsProviderSignIn bool      `gorm:"type:boolean;default:false"`
     IsVerified       bool      `gorm:"type:boolean;default:false"`
     ProfileImage     string    `gorm:"type:varchar(255)"`
-    RefreshToken     string    `gorm:"type:text"`
-    AccessToken      string    `gorm:"type:text"`
-    PasswordResetToken string  `gorm:"type:text"`
     TwoFactorAuth bool `gorm:"type:boolean;default:false"`
-    OTPCode string `gorm:"type:varchar(6)"`
-    VerificationToken string   `gorm:"type:text"`
-    CreatedAt        time.Time `gorm:"autoCreateTime"` // Automatically sets the time on insert
-    UpdatedAt        time.Time `gorm:"autoUpdateTime"` // Automatically sets the time on update
+    CreatedAt        time.Time `gorm:"autoCreateTime"` 
+    UpdatedAt        time.Time `gorm:"autoUpdateTime"` 
 }
 
 type Token struct {

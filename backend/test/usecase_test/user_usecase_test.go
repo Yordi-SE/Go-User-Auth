@@ -1,6 +1,8 @@
 package usecase_test
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"mime/multipart"
 	"os"
@@ -12,6 +14,8 @@ import (
 	"user_authorization/test/mocks"
 	"user_authorization/usecases"
 	"user_authorization/usecases/dto"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/mock"
@@ -34,6 +38,7 @@ type UserUseCaseTestSuite struct {
 	HashingService *infrastructure.HashingService
 	MockFileUploadManager *mocks.FileUploadManagerI
 	MockEmailService *mocks.EmailServiceI
+	cacheRepo *infrastructure.CacheRepo
 	DB *gorm.DB
 }
 
@@ -48,15 +53,34 @@ func (suite *UserUseCaseTestSuite) SetupTest() {
 	}
     db.AutoMigrate(&models.User{})
 	db.AutoMigrate(&models.Token{})
+	redisClient := redis.NewClient(&redis.Options{
+        Addr:	  "localhost:6379",
+        Password: "", // No password set
+        DB:		  0,  // Use default DB
+        Protocol: 2,  // Connection protocol
+    })
+	ctx := context.Background()
+
+	err = redisClient.Set(ctx, "foo", "bar", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	val, err := redisClient.Get(ctx, "foo").Result()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("foo", val)
 	suite.DB = db
+	suite.cacheRepo = infrastructure.NewCacheRepo(redisClient,context.Background())
 	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"))
 	suite.HashingService = infrastructure.NewHashingService()
 	suite.MockFileUploadManager = new(mocks.FileUploadManagerI)
 	suite.MockEmailService = new(mocks.EmailServiceI)
 	suite.UserRepository = repositories.NewUserRepository(db)
 	suite.TokenRepository = repositories.NewTokenRepository(db)
-	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository)
-	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository,os.Getenv("TWO_FACTOR_SECRET"))
+	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository,suite.cacheRepo)
+	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository,os.Getenv("TWO_FACTOR_SECRET"),suite.cacheRepo)
 }
 
 

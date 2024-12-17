@@ -25,16 +25,18 @@ type UserUsecase struct {
 	jwtService interfaces.JWTServiceI
 	fileUploadManager interfaces.FileUploadManagerI
 	tokenRepository interfaces.TokenRepositoryI
+	cacheRepository interfaces.CacheRepositoryI
 }
 
 // NewUserUsecase creates a new user usecase
-func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interfaces.JWTServiceI, pwdService interfaces.HashingServiceI,fileUpload interfaces.FileUploadManagerI, token interfaces.TokenRepositoryI) *UserUsecase {
+func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interfaces.JWTServiceI, pwdService interfaces.HashingServiceI,fileUpload interfaces.FileUploadManagerI, token interfaces.TokenRepositoryI,cacheRepository interfaces.CacheRepositoryI) *UserUsecase {
 	return &UserUsecase{
 		userRepository: userRepository,
 		pwdService: pwdService,
 		jwtService: jwtService,
 		fileUploadManager: fileUpload,
 		tokenRepository: token,
+		cacheRepository: cacheRepository,
 	}
 }
 
@@ -57,8 +59,6 @@ func (u *UserUsecase) GetUsers(page int) ([]dto.UserResponseDTO, *errors.CustomE
 			Role: user.Role,
 			IsProviderSignIn: user.IsProviderSignIn,
 			IsVerified: user.IsVerified,
-			RefreshToken: user.RefreshToken,
-			AccessToken: user.AccessToken,
 			TwoFactorAuth: user.TwoFactorAuth,
 
 		}
@@ -82,8 +82,6 @@ func (u *UserUsecase) GetUserById(userId string) (*dto.UserResponseDTO, *errors.
 		Role: user.Role,
 		IsProviderSignIn: user.IsProviderSignIn,
 		IsVerified: user.IsVerified,
-		RefreshToken: user.RefreshToken,
-		AccessToken: user.AccessToken,
 		TwoFactorAuth: user.TwoFactorAuth,
 	}
 	return &userDTO, nil

@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"fmt"
+	errorss "errors"
 	models "user_authorization/domain"
 
 	"gorm.io/gorm"
@@ -54,7 +54,7 @@ func (r *UserRepository) GetUsers(page int) ([]models.User, *errors.CustomError)
 func (r *UserRepository) GetUserById(userId string) (*models.User, *errors.CustomError) {
     var user models.User
     if err := r.db.Table("users").Where("user_id = ?", userId).First(&user).Error; err != nil {
-        if err == gorm.ErrRecordNotFound {
+        if errorss.Is(err, gorm.ErrRecordNotFound) {
             return nil, errors.NewCustomError("user not found", 404)
         }
         return nil, errors.NewCustomError("error getting user", 500)
@@ -66,9 +66,7 @@ func (r *UserRepository) GetUserById(userId string) (*models.User, *errors.Custo
 func (r *UserRepository) GetUserByEmail(email string) (*models.User, *errors.CustomError) {
     user := models.User{}
     if err := r.db.Table("users").Where("email = ?", email).First(&user).Error; err != nil {
-            fmt.Println(err)
-
-        if err == gorm.ErrRecordNotFound {
+        if errorss.Is(err, gorm.ErrRecordNotFound) {
             return nil, errors.NewCustomError("user not found", 404)
         }
         return nil, errors.NewCustomError("error getting user", 500)
@@ -91,18 +89,18 @@ func (r *UserRepository) DeleteUser(userId string) *errors.CustomError {
 
 
 //Update user Token
-func (r *UserRepository) UpdateUserToken(userId string, accessToken string, refreshToken string) *errors.CustomError {
-    var user models.User
-    if err := r.db.Table("users").First(&user, "user_id = ?", userId).Error; err != nil {
-        return errors.NewCustomError("user not found", 404)
-    }
-    user.AccessToken = accessToken
-    user.RefreshToken = refreshToken
-    if err := r.db.Save(&user).Error; err != nil {
-        return errors.NewCustomError("error updating user token", 500)
-    }
-    return nil
-}
+// func (r *UserRepository) UpdateUserToken(userId string, accessToken string, refreshToken string) *errors.CustomError {
+//     var user models.User
+//     if err := r.db.Table("users").First(&user, "user_id = ?", userId).Error; err != nil {
+//         return errors.NewCustomError("user not found", 404)
+//     }
+//     user.AccessToken = accessToken
+//     user.RefreshToken = refreshToken
+//     if err := r.db.Save(&user).Error; err != nil {
+//         return errors.NewCustomError("error updating user token", 500)
+//     }
+//     return nil
+// }
 
 //update user password
 func (r *UserRepository) SaveUserUpdate(user *models.User) *errors.CustomError {

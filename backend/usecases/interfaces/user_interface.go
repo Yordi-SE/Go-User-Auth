@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"mime/multipart"
+	"time"
 	models "user_authorization/domain"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -13,7 +14,6 @@ import (
 type UserRepositoryI interface {
 	CreateUser(user *models.User) (*models.User, *errors.CustomError)
 	GetUserById(userId string) (*models.User, *errors.CustomError)
-	UpdateUserToken(userId string, accessToken string, refreshToken string) *errors.CustomError 
 	DeleteUser(userId string) *errors.CustomError
 	GetUserByEmail(email string) (*models.User, *errors.CustomError)
 	GetUsers(page int) ([]models.User, *errors.CustomError)
@@ -54,4 +54,10 @@ type EmailServiceI interface {
 	SendEmail(email string, subject string, body string,from string) error
 	GenerateOTP(length int) (string, error)
 	GetOTPEmailBody(otpCode string,file_name string) (string, error) 
+}
+
+type CacheRepositoryI interface {
+	Set(key string, value string, expiry_time time.Duration) *errors.CustomError
+	Get(key string) (string, *errors.CustomError) 
+	Delete(key string) *errors.CustomError 
 }
