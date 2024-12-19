@@ -85,10 +85,6 @@ func (suite *UserUseCaseTestSuite) TearDownTest() {
 	if err := suite.DB.Exec("TRUNCATE TABLE users").Error; err != nil {
 		suite.T().Fatal("Failed to truncate users table", err)
 }
-
-	if err := suite.DB.Exec("TRUNCATE TABLE tokens").Error; err != nil {
-		suite.T().Fatal("Failed to truncate tokens table", err)
-	}
 }
 
 

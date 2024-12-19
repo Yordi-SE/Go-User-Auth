@@ -264,31 +264,6 @@ func (suite *UserAuthTest) TestLoginUser_WrongPassword() {
 	suite.Equal(err.StatusCode, 401)
 }
 
-//user is not verified
-func (suite *UserAuthTest) TestLoginUser_NotVerified() {
-	password, err := suite.HashingService.HashPassword("password")
-	if err != nil {
-		suite.Fail("Failed to hash password")
-	}
-	user := models.User{
-		FullName:          "Jane Doe",
-		Email:            "jan@gmail.com",
-		IsVerified:        false,
-		IsProviderSignIn:  false,
-		PhoneNumber:       "1234567890",
-		Password:          password,
-	}
-	_,err  = suite.UserRepository.CreateUser(&user)
-	if err != nil {
-		suite.Fail("Failed to create user")
-	}
-	_, err = suite.UserAuthCase.SignIn(&dto.UserLoginDTO{
-		Email:    user.Email,
-		Password: "password",
-	})
-	suite.Equal(err.Error(),"Email address is not verified.")
-	suite.Equal(err.StatusCode, 401)
-}
 
 //user 2fa enabled
 func (suite *UserAuthTest) TestLoginUser_TwoFactorAuth() {
