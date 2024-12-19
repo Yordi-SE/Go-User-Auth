@@ -19,32 +19,71 @@ export const options = {
         },
       },
       async authorize(credentials) {
-        if (credentials?.email && credentials?.password) {
-          return credentials;
-        } else {
-          console.log(credentials.user);
-          if (credentials?.access_token) {
-            const user = {
-              access_token: credentials.access_token,
-              full_name: credentials.full_name,
-              email: credentials.email,
-              profile_image: credentials.profile_image,
-              phone_number: credentials.phone_number,
-              user_id: credentials.user_id,
-              role: credentials.role,
-              is_verified: credentials.is_verified,
-            };
-            return user;
-          }
-          throw new Error("Invalid credentials or session");
-        }
+        let response;
+        try {
+          if (credentials?.email && credentials?.password) {
+            response = await axios.post(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`,
+              credentials
+            );
 
+            if (response.status === 200) {
+              return response.data.data;
+            }
+          } else {
+            if (credentials?.access_token) {
+              const user = {
+                access_token: credentials.access_token,
+                full_name: credentials.full_name,
+                email: credentials.email,
+                profile_image: credentials.profile_image,
+                phone_number: credentials.phone_number,
+                user_id: credentials.user_id,
+                role: credentials.role,
+                is_verified: credentials.is_verified,
+                refresh_token: credentials.refresh_token,
+              };
+              return user;
+            }
+            throw new Error("Invalid credentials or session");
+          }
+        } catch (error) {
+          if (axios.isAxiosError(error)) {
+            if (error.response) {
+              console.log("error", error.response.data);
+              if (
+                error.response.data.error.message ==
+                "Email address is not verified."
+              ) {
+                throw new Error("Email address is not verified.");
+              } else if (error.response.status === 400) {
+                setError("Bad Request: Missing or invalid data.");
+              } else if (error.response.status === 401) {
+                setError("Unauthorized: Incorrect email or password.");
+              } else if (error.response.status === 403) {
+                setError("Forbidden: Your account is inactive.");
+              } else if (error.response.status === 500) {
+                setError("Server Error: Please try again later.");
+              } else {
+                setError("An unexpected error occurred.");
+              }
+            } else if (error.request) {
+              setError("Network error: Unable to reach the server.");
+            }
+          } else {
+            setError("Unexpected error: " + String(error));
+          }
+        }
         return null;
       },
     }),
   ],
   session: {
     strategy: "jwt",
+    maxAge: 3 * 24 * 60 * 60,
+  },
+  jwt: {
+    maxAge: 3 * 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -54,23 +93,6 @@ export const options = {
       return token;
     },
     async session({ session, token }) {
-      const getExpiration = (token) => {
-        try {
-          const decoded = jwtDecode(token);
-          if (!decoded.exp) {
-            return null;
-          }
-          return decoded.exp * 1000;
-        } catch {
-          return null;
-        }
-      };
-
-      const refreshExpiration = getExpiration(token.userData.refresh_token);
-
-      if (refreshExpiration) {
-        session.expires = new Date(refreshExpiration).toISOString();
-      }
       session.user = token.userData;
       return session;
     },

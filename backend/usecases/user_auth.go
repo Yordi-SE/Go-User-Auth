@@ -16,17 +16,17 @@ import (
 //UserAuthI
 
 type UserAuthI interface {
-	CheckToken(token string) *errors.CustomError
+	CheckToken(tokenId string, userId string) *errors.CustomError
 	CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError)
-	SignOut(token string) *errors.CustomError
+	SignOut(tokenId string,userId string) *errors.CustomError
 	SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.CustomError)
 	RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDTO, *errors.CustomError)
-	HandleProviderSignIn(user *models.User) (*dto.UserResponseDTO, *errors.CustomError) 
+	HandleProviderSignIn(user *models.User) (string, *errors.CustomError)
 	VerifyEmail(Token string) *errors.CustomError
 	ResendVerificationEmail(email string) *errors.CustomError
 	ForgotPassword(email *dto.EmailDTO) *errors.CustomError
 	ResetPassword(password string, token string) *errors.CustomError
-	ValidateToken(user_id string) (*dto.UserResponseDTO, *errors.CustomError)
+	 ValidateToken(token string) (*dto.UserResponseDTO, *errors.CustomError)
 	EnableTwoFactorAuthentication(email string) *errors.CustomError
 	TwoFactorAuthenticationVerification(email string,otpCode string, otpToken string) (*dto.UserResponseDTO,*errors.CustomError)
 	ResendOTPCode(email string,otpToken string) *errors.CustomError	
@@ -38,20 +38,18 @@ type UserAuth struct {
 	PwdService     interfaces.HashingServiceI
 	JwtService     interfaces.JWTServiceI
 	EmailService  interfaces.EmailServiceI
-	TokenRepository interfaces.TokenRepositoryI
 	TwoFactorSecretKey string
 	CacheRepository interfaces.CacheRepositoryI
 }
 
 
 //NewUserAuth creates a new UserAuth
-func NewUserAuth(userRepository interfaces.UserRepositoryI, pwdService interfaces.HashingServiceI, jwtService interfaces.JWTServiceI, emailService interfaces.EmailServiceI,token interfaces.TokenRepositoryI,TwoFactorSecretKey string,cacheRepository interfaces.CacheRepositoryI) *UserAuth {
+func NewUserAuth(userRepository interfaces.UserRepositoryI, pwdService interfaces.HashingServiceI, jwtService interfaces.JWTServiceI, emailService interfaces.EmailServiceI,TwoFactorSecretKey string,cacheRepository interfaces.CacheRepositoryI) *UserAuth {
 	return &UserAuth{
 		UserRepository: userRepository,
 		JwtService: jwtService,
 		PwdService: pwdService,
 		EmailService: emailService,
-		TokenRepository: token,
 		TwoFactorSecretKey: TwoFactorSecretKey,
 		CacheRepository: cacheRepository,
 	}
@@ -146,11 +144,6 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 	if err != nil {
 		return nil, err
 	}
-	//.Println(result.Email,user.Email, result.IsVerified)
-
-	if !result.IsVerified {
-		return nil, errors.NewCustomError("Email address is not verified.", http.StatusUnauthorized)
-	}
 	if !u.PwdService.ComparePassword(result.Password, user.Password) {
 		return nil,errors.NewCustomError("Invalid email or password", http.StatusUnauthorized)
 	}
@@ -219,20 +212,8 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 }
 
 // Signout user
-func (u *UserAuth) SignOut(token string) *errors.CustomError {
-	tokenString ,err := u.JwtService.ValidateRefreshToken(token)
-	if err != nil {
-		return err
-	}
-	claims, ok := tokenString.Claims.(jwt.MapClaims)
-	if !ok {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	tokenId, ok := claims["token_id"].(string)
-	if !ok {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	err = u.TokenRepository.DeleteToken(tokenId)
+func (u *UserAuth) SignOut(tokenId string,userId string) *errors.CustomError {
+	err := u.CacheRepository.Delete(userId + tokenId)
 	if err != nil {
 		return err
 
@@ -306,74 +287,44 @@ func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDT
 }
 
 // handle provider sign in
-func (u *UserAuth) HandleProviderSignIn(user *models.User) (*dto.UserResponseDTO, *errors.CustomError) {
+func (u *UserAuth) HandleProviderSignIn(user *models.User) (string, *errors.CustomError) {
 	existingUser, err := u.UserRepository.GetUserByEmail(user.Email)
 	if err != nil && err.StatusCode != 404 {
-		return nil, errors.NewCustomError("Database error: "+err.Error(), http.StatusInternalServerError)
+		return "", errors.NewCustomError("Database error: "+err.Error(), http.StatusInternalServerError)
 	}
 	if existingUser != nil {
-		// Update the existing user
-		tokenId := uuid.New()
-		accessToken, refreshToken, err := u.JwtService.Generate(existingUser,tokenId.String())
-
+		providerToken ,err := u.JwtService.GenerateProviderToken(existingUser)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		existingUser.IsVerified = true
 		err = u.UserRepository.SaveUserUpdate(existingUser)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		err = u.CacheRepository.Set(existingUser.UserID.String() + tokenId.String(), refreshToken, 72 * time.Hour)
+		err = u.CacheRepository.Set(existingUser.Email + "provider_token", providerToken, 15 * time.Minute)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		newUser := dto.UserResponseDTO{
-			UserId: existingUser.UserID,
-			FullName: existingUser.FullName,
-			Email: existingUser.Email,
-			Role: existingUser.Role,
-			PhoneNumber: existingUser.PhoneNumber,
-			IsProviderSignIn: existingUser.IsProviderSignIn,
-			IsVerified: existingUser.IsVerified,
-			ProfileImage: existingUser.ProfileImage,
-			RefreshToken: refreshToken,
-			AccessToken: accessToken,
-			TwoFactorAuth: existingUser.TwoFactorAuth,
-		}
-		return &newUser, nil
+		return providerToken, nil
 	}
 	user.Role = "user"
 	user.UserID = uuid.New()
-	tokeId := uuid.New()
-	accessToken, refreshToken, err := u.JwtService.Generate(user,tokeId.String())
+	providerToken, err := u.JwtService.GenerateProviderToken(user)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	err = u.CacheRepository.Set(user.UserID.String() + tokeId.String(), refreshToken, 72 * time.Hour)
+	err = u.CacheRepository.Set(user.Email + "provider_token", providerToken, 15 * time.Minute)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	userModel, err := u.UserRepository.CreateUser(user)
+	_, err = u.UserRepository.CreateUser(user)
 	if err != nil {
-		return nil, err
+		return "", err
 
 	}
 
-	response := dto.UserResponseDTO{
-		UserId: userModel.UserID,
-		FullName: userModel.FullName,
-		Email: userModel.Email,
-		Role: userModel.Role,
-		PhoneNumber: userModel.PhoneNumber,
-		IsProviderSignIn: userModel.IsProviderSignIn,
-		IsVerified: userModel.IsVerified,
-		ProfileImage: userModel.ProfileImage,
-		AccessToken: accessToken,
-		RefreshToken: refreshToken,
-		TwoFactorAuth: userModel.TwoFactorAuth,
-	}
-	return &response, nil
+	return providerToken, nil
 }
 
 // verify user email
@@ -520,12 +471,46 @@ func (u *UserAuth) ResetPassword(password string, token string) *errors.CustomEr
 	return nil
 }
 
-func (u *UserAuth) ValidateToken(user_id string) (*dto.UserResponseDTO, *errors.CustomError) {
+func (u *UserAuth) ValidateToken(token string) (*dto.UserResponseDTO, *errors.CustomError) {
+	tokenString, err := u.JwtService.ValidateProviderToken(token)
+	if err != nil {
+		return nil,err 
+	}
+	if tokenString == nil || !tokenString.Valid {
+		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
 
-	user, err := u.UserRepository.GetUserById(user_id)
+	claims, ok := tokenString.Claims.(jwt.MapClaims)
+	if !ok  {
+		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	email, ok := claims["user_email"].(string)
+	if !ok {
+		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	user, err := u.UserRepository.GetUserByEmail(email)
 	if err != nil {
 		return nil, err
 	}
+
+	tokenResult ,err := u.CacheRepository.Get(user.Email + "provider_token")
+	if err != nil {
+		return nil, err
+	}
+	if tokenResult != token {
+		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	}
+	tokenId := uuid.New()
+	accessToken, refreshToken, err := u.JwtService.Generate(user,tokenId.String())
+	if err != nil {
+		return nil, err
+	}
+
+	err = u.CacheRepository.Set(user.UserID.String() + tokenId.String(), refreshToken, 72 *time.Hour)
+	if err != nil {
+		return nil, err
+	}
+
 
 	response := dto.UserResponseDTO{
 		UserId: user.UserID,
@@ -537,43 +522,23 @@ func (u *UserAuth) ValidateToken(user_id string) (*dto.UserResponseDTO, *errors.
 		IsVerified: user.IsVerified,
 		ProfileImage: user.ProfileImage,
 		TwoFactorAuth: user.TwoFactorAuth,
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
+
 	}
 	return &response, nil
 }
 
-func (u *UserAuth) CheckToken(token string) *errors.CustomError {
-	tokenString ,err := u.JwtService.ValidateRefreshToken(token)
+func (u *UserAuth) CheckToken(tokenId string,userId string) *errors.CustomError {
+	token ,err := u.CacheRepository.Get(userId + tokenId)
 	if err != nil {
 		return err
+	}
+	tokenString, err := u.JwtService.ValidateRefreshToken(token)
+	if err != nil {
+		return err 
 	}
 	if tokenString == nil || !tokenString.Valid {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	claims, ok := tokenString.Claims.(jwt.MapClaims)
-	if !ok {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	tokenId, ok := claims["token_id"].(string)
-	if !ok {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	user_id, ok := claims["user_id"].(string)
-	if !ok {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	result, err := u.CacheRepository.Get(user_id + tokenId)
-	if err != nil {
-		return err
-	}
-	tokenString, err = u.JwtService.ValidateRefreshToken(result)
-	if err != nil {
-		return err
-	}
-	
-	if tokenString == nil || !tokenString.Valid {
-		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
-	}
-	if result != token {
 		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 	return nil

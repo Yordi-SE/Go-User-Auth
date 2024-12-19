@@ -24,18 +24,16 @@ type UserUsecase struct {
 	pwdService interfaces.HashingServiceI
 	jwtService interfaces.JWTServiceI
 	fileUploadManager interfaces.FileUploadManagerI
-	tokenRepository interfaces.TokenRepositoryI
 	cacheRepository interfaces.CacheRepositoryI
 }
 
 // NewUserUsecase creates a new user usecase
-func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interfaces.JWTServiceI, pwdService interfaces.HashingServiceI,fileUpload interfaces.FileUploadManagerI, token interfaces.TokenRepositoryI,cacheRepository interfaces.CacheRepositoryI) *UserUsecase {
+func NewUserUsecase(userRepository interfaces.UserRepositoryI, jwtService interfaces.JWTServiceI, pwdService interfaces.HashingServiceI,fileUpload interfaces.FileUploadManagerI, cacheRepository interfaces.CacheRepositoryI) *UserUsecase {
 	return &UserUsecase{
 		userRepository: userRepository,
 		pwdService: pwdService,
 		jwtService: jwtService,
 		fileUploadManager: fileUpload,
-		tokenRepository: token,
 		cacheRepository: cacheRepository,
 	}
 }

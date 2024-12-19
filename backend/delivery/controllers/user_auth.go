@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	models "user_authorization/domain"
 	errors "user_authorization/error"
@@ -71,13 +70,29 @@ func (u *UserAuthController) Login(c *gin.Context) {
 
 //Logout user
 func (u *UserAuthController)  Logout(c *gin.Context) {
-	token, errr := c.Cookie("refresh_token")
-	if  errr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError("User not found",http.StatusBadRequest)})
+	tokenValue ,exists := c.Get("token_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
 		return
 	}
+	token,ok := tokenValue.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
+		return
+	}
+	userIdValue, exists := c.Get("user_id")
+	if !exists {
 
-	errs := u.userAuthUseCase.SignOut(token)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
+		return
+	}
+	userId,ok := userIdValue.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
+
+		return
+	}
+	errs := u.userAuthUseCase.SignOut(token,userId)
 	if errs != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusBadRequest)})
 		return
@@ -90,15 +105,32 @@ func (u *UserAuthController)  Logout(c *gin.Context) {
 //check token validity middleware
 func (u *UserAuthController) CheckToken(c *gin.Context) {
 	defer c.Next()
-	token ,errr := c.Cookie("refresh_token")
-
-	if errr != nil {
+	value ,exist := c.Get("token_id")
+	if !exist {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
+		c.Abort()
+		return
+	}
+	tokenId,ok := value.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
+		c.Abort()
+		return
+	}
+	userIdValue, exist := c.Get("user_id")
+	if !exist {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
+		c.Abort()
+		return
+	}
+	userId,ok := userIdValue.(string)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
 		c.Abort()
 		return
 	}
 
-	err := u.userAuthUseCase.CheckToken(token)
+	err := u.userAuthUseCase.CheckToken(tokenId,userId)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Token not found",http.StatusUnauthorized)})
 		c.Abort()
@@ -110,16 +142,13 @@ func (u *UserAuthController) CheckToken(c *gin.Context) {
 
 // Refresh token
 func (u *UserAuthController) RefreshToken(c *gin.Context) {
-
-	refreshToken,errs := c.Cookie("refresh_token")
-	fmt.Println("refreshToken",refreshToken)
-	if errs != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(),http.StatusUnauthorized)})
+	var refreshToken dto.RefreshTokenDTO
+	if err := c.ShouldBindJSON(&refreshToken); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusBadRequest)})
 		return
 	}
-	token, err := u.userAuthUseCase.RefreshToken(&dto.RefreshTokenDTO{
-		RefreshToken: refreshToken,
-	})
+	
+	token, err := u.userAuthUseCase.RefreshToken(&refreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(err.Error(),http.StatusUnauthorized)})
 		return
@@ -168,14 +197,12 @@ func (u *UserAuthController) Callback(c *gin.Context) {
 	token , errs := u.userAuthUseCase.HandleProviderSignIn(&user)
 
 	if errs != nil {
-		c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider")
+	c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider")
 		return 
 	}
 
-	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
-	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
+	c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider?provider_token="+token)
 
-	c.Redirect(http.StatusFound, "http://localhost:3000/auth/backend-provider")
 
 
 }
@@ -247,32 +274,14 @@ func (u *UserAuthController) ResetPassword(c *gin.Context) {
 }
 
 func (u *UserAuthController) ValidateToken(c *gin.Context) {
-	access_token, err := c.Cookie("access_token")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Invalid token claim",http.StatusUnauthorized)})
-		return 
+	token := c.Query("provider_token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.NewCustomError("Invalid token",http.StatusBadRequest)})
+		return
 	}
-	refresh_token , err:= c.Cookie("refresh_token")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Invalid token claim",http.StatusUnauthorized)})
-		return 
-	}
-	value,existis := c.Get("user_id")
-	if !existis {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Invalid token claim",http.StatusUnauthorized)})
-		return 
-	}
-	user_id,ok := value.(string)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Invalid token claim",http.StatusUnauthorized)})
-		return 
-	}
-
-	user,errs := u.userAuthUseCase.ValidateToken(user_id)
-	user.AccessToken= access_token
-	user.RefreshToken = refresh_token
+	user,errs := u.userAuthUseCase.ValidateToken(token)
 	if errs != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError("Error getting session",http.StatusUnauthorized)})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(),http.StatusUnauthorized)})
 		return 
 	}
 	c.JSON(http.StatusOK, user)

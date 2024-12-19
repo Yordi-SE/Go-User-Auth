@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"net/http"
+	"strings"
 	errors "user_authorization/error"
 	"user_authorization/usecases/interfaces"
 
@@ -51,19 +52,15 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		defer c.Next()
 		access_token, err := c.Cookie("access_token")
 		if err != nil {
-			c.JSON(http.StatusUnauthorized,gin.H{
-				"error": errors.NewCustomError("Invalid token", http.StatusUnauthorized),
-			})
-			c.Abort()
-			return
-		}
-		refresh_token, err := c.Cookie("refresh_token")
-		if err != nil {
-			c.JSON(http.StatusUnauthorized,gin.H{
-				"error": errors.NewCustomError("Invalid token", http.StatusUnauthorized),
-			})
-			c.Abort()
-			return
+			accessToken, errs := getTokenFromHeader(c)
+			if errs != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": errors.NewCustomError("Invalid access token", http.StatusUnauthorized),
+				})
+				c.Abort()
+				return
+			}
+			access_token = accessToken
 		}
 		token, errs := jwtService.ValidateAccessToken(access_token)
 		if errs != nil {
@@ -92,7 +89,8 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		}
 		role := claims["role"]
 		id := claims["user_id"]
-		if role == nil || id == nil {
+		token_id := claims["token_id"]
+		if role == nil || id == nil || token_id == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": errors.NewCustomError("Invalid token claims", http.StatusUnauthorized),
 			})
@@ -101,8 +99,8 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		}
 		c.Set("role",role)
 		c.Set("user_id",id)
+		c.Set("token_id",token_id)
 		c.Set("Authorization",access_token)
-		c.Set("Refresh", refresh_token)
 	}
 }
 
@@ -150,4 +148,19 @@ func UserAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 
 		
 	}
+}
+
+func getTokenFromHeader(c *gin.Context) (string, *errors.CustomError) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return "", errors.NewCustomError("authorization header missing", http.StatusBadRequest)
+	}
+
+	// format: "Bearer <token>"
+	parts := strings.Split(authHeader, " ")
+	if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+		return parts[1], nil
+	}
+
+	return "", errors.NewCustomError("invalid authorization header format", http.StatusBadRequest)
 }

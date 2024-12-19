@@ -9,17 +9,26 @@ export const useRefreshToken = () => {
 
   const refreshToken = async () => {
     try {
-      const res = await axiosInst.get("/api/auth/user/refresh", {
-        withCredentials: true,
-      });
+      console.log("session?.user?.refresh_token", session?.user?.refresh_token);
+      const res = await axiosInst.post(
+        "/api/auth/user/refresh",
+        {
+          refresh_token: session?.user?.refresh_token,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
-      if (!session) signIn();
+      if (session) {
+        session.user.access_token = res.data.access_token;
+        session.user.refresh_token = res.data.refresh_token;
+      } else signIn();
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          signOut({
+          await signOut({
             callbackUrl: "/auth/login",
-            redirect: false,
           });
           alert("Session expired. Please log in again.");
         } else {

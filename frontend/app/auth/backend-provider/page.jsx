@@ -4,14 +4,21 @@ import axios from "axios";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 const AuthSuccess = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
+  const providerToken = searchParams.get("provider_token");
   const handleOAuthLogin = async () => {
     try {
+      if (!providerToken) {
+        router.push("/auth/backend-provider/error");
+        return;
+      }
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/validate_token`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/validate_token?provider_token=${providerToken}`,
         {
           withCredentials: true,
         }

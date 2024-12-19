@@ -35,7 +35,6 @@ type UserAuthTest struct {
 	HashingService    *infrastructure.HashingService
 	JwtService       *infrastructure.JWTManager
 	MockFileUploadManager *mocks.FileUploadManagerI
-	TokenRepository   *repositories.TokenRepository
 	MockEmailService      *mocks.EmailServiceI
 	UserUsecase *usecases.UserUsecase
 	UserAuthCase *usecases.UserAuth
@@ -53,7 +52,6 @@ func (suite *UserAuthTest) SetupTest() {
 		log.Fatal("Failed to connect to database", err)
 	}
     db.AutoMigrate(&models.User{})
-	db.AutoMigrate(&models.Token{})
 	redisClient := redis.NewClient(&redis.Options{
         Addr:	  "localhost:6379",
         Password: "", // No password set
@@ -73,25 +71,21 @@ func (suite *UserAuthTest) SetupTest() {
 	}
 	fmt.Println("foo", val)
 	suite.DB = db
-	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"))
+	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"),os.Getenv("PROVIDERTOKENSECRET"))
 	suite.HashingService = infrastructure.NewHashingService()
 	suite.MockFileUploadManager = new(mocks.FileUploadManagerI)
 	suite.MockEmailService = new(mocks.EmailServiceI)
 	suite.cacheRepo = infrastructure.NewCacheRepo(redisClient,context.Background())
 	suite.UserRepository = repositories.NewUserRepository(db)
-	suite.TokenRepository = repositories.NewTokenRepository(db)
-	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository, suite.cacheRepo)
-	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository, os.Getenv("TwO_FACTOR_SECRET"),suite.cacheRepo)
+	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.cacheRepo)
+	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, os.Getenv("TwO_FACTOR_SECRET"),suite.cacheRepo)
 }
 
 func (suite *UserAuthTest) TearDownTest() {
 	if err := suite.DB.Exec("TRUNCATE TABLE users").Error; err != nil {
 		suite.T().Fatal("Failed to truncate users table", err)
-}
-
-	if err := suite.DB.Exec("TRUNCATE TABLE tokens").Error; err != nil {
-		suite.T().Fatal("Failed to truncate tokens table", err)
 	}
+
 }
 
 
@@ -504,96 +498,8 @@ func (suite *UserAuthTest) TestVerifyEmail() {
 
 
 //handle provider sign in
-func (suite *UserAuthTest) TestProviderSignIn() {
-	user := models.User{
-		UserID: uuid.New(),
-		FullName:          "Jane Doe",
-		Email:            "jan@gmail.com",
-		IsVerified:        true,
-		IsProviderSignIn:  true,
-		ProfileImage: "profile.jpg",
-	}
 
-	response, err := suite.UserAuthCase.HandleProviderSignIn(&user)
-	if err != nil {
-		suite.Fail("Failed to handle provider sign in")
-	}
 
-	token ,err := suite.JwtService.ValidateRefreshToken(response.RefreshToken)
-	if err != nil {
-		suite.Fail("Failed to validate refresh token")
-
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-
-	if !ok {
-		suite.Fail("Failed to find claim")
-	}
-	tokenId, ok := claims["token_id"].(string)
-
-	if !ok {
-		suite.Fail("Failed to find claim")
-
-	}
-
-	tokenResponse, err := suite.cacheRepo.Get(user.UserID.String() + tokenId)
-	if err != nil {
-		suite.Fail("Failed to get token")
-	}
-	userResponse, err := suite.UserRepository.GetUserByEmail(user.Email)
-
-	if err != nil {
-		suite.Fail("Failed to get user")
-	}
-
-	suite.Equal(tokenResponse, response.RefreshToken)
-
-	suite.Equal(response.Email, userResponse.Email)
-	suite.Equal(response.FullName, userResponse.FullName)
-	suite.Equal(response.PhoneNumber, userResponse.PhoneNumber)
-	suite.Equal(response.IsVerified, userResponse.IsVerified)
-	suite.Equal(response.IsProviderSignIn, userResponse.IsProviderSignIn)
-	suite.Equal(response.Role, "user")
-	suite.Equal(response.IsProviderSignIn, true)
-	suite.Equal(response.IsVerified, true)
-	suite.Equal(response.ProfileImage, userResponse.ProfileImage)
-
-}
-
-// handle provider sign in user already exists
-func (suite *UserAuthTest) TestProviderSignIn_Exists() {
-	Password, err := suite.HashingService.HashPassword("password")
-	if err != nil {
-		suite.Fail("Failed to hash password")
-	}
-	user := models.User{
-		UserID: uuid.New(),
-		FullName:          "Jane Doe",
-		Email:            "jan@gmail.com",
-		IsVerified:        false,
-		IsProviderSignIn:  false,
-		ProfileImage: "profile.jpg",
-		Password: Password,
-	}
-	_,err  = suite.UserRepository.CreateUser(&user)
-	if err != nil {
-		suite.Fail("Failed to create user")
-	}
-	response, err := suite.UserAuthCase.HandleProviderSignIn(&user)
-	if err != nil {
-		suite.Fail("Failed to handle provider sign in")
-	}
-
-	suite.Equal(response.Email, user.Email)
-	suite.Equal(response.FullName, user.FullName)
-	suite.Equal(response.PhoneNumber, user.PhoneNumber)
-	suite.Equal(response.IsProviderSignIn, user.IsProviderSignIn)
-	suite.Equal(response.Role, "user")
-	suite.Equal(response.IsVerified, true)
-	suite.Equal(response.ProfileImage, user.ProfileImage)
-	suite.NotEmpty(response.AccessToken)
-	suite.NotEmpty(response.RefreshToken)
-}
 
 
 // sign out user
@@ -603,6 +509,7 @@ func (suite *UserAuthTest) TestSignOut() {
 		suite.Fail("Failed to hash password")
 	}
 	user := models.User{
+
 		FullName:          "Jane Doe",
 		Email:            "jane@gmail.com",
 		IsVerified:        true,
@@ -622,10 +529,8 @@ func (suite *UserAuthTest) TestSignOut() {
 	if err != nil {
 		suite.Fail("Failed to login user")
 	}
-	err = suite.UserAuthCase.SignOut(response.RefreshToken)
-	if err != nil {
-		suite.Fail("Failed to sign out user")
-	}
+
+
 	token ,err := suite.JwtService.ValidateRefreshToken(response.RefreshToken)
 	if err != nil {
 		suite.Fail("Failed to validate refresh token")
@@ -642,12 +547,114 @@ func (suite *UserAuthTest) TestSignOut() {
 		suite.Fail("Failed to find claim")
 
 	}
+	err = suite.UserAuthCase.SignOut(tokenId, user.UserID.String())
+	if err != nil {
+		suite.Fail("Failed to sign out user")
+	}
 
-	_, err = suite.TokenRepository.GetTokenById(tokenId)
+	_, err = suite.cacheRepo.Get(user.UpdatedAt.String() + tokenId)
 
 
-	suite.Equal(err.Error(),"token not found")
-	suite.Equal(err.StatusCode, 404)
+	suite.Equal(err.Error(),"error getting cache")
+	suite.Equal(err.StatusCode, 500)
+}
+
+//handle provider sign in
+func (suite *UserAuthTest) TestHandleProviderSignIn() {
+	user := models.User{
+		UserID: uuid.New(),
+		FullName:          "Jane Doe",
+		Email:            "Jane@gmail.com",
+		IsVerified:        false,
+		IsProviderSignIn:  false,
+		PhoneNumber:       "1234567890",
+	}
+	_,err  := suite.UserRepository.CreateUser(&user)
+	if err != nil {
+		suite.Fail("Failed to create user")
+	}
+	result,err := suite.UserAuthCase.HandleProviderSignIn(&user)
+
+	if err != nil {
+		suite.Fail("Failed to handle provider sign in")
+	}
+
+	tokenstring, err := suite.JwtService.ValidateProviderToken(result)
+	if err != nil {
+		suite.Fail("Failed to validate provider token")
+	}
+	claims, ok := tokenstring.Claims.(jwt.MapClaims)
+
+	if !ok {
+		suite.Fail("Failed to find claim")
+	}
+	user_email, ok := claims["user_email"].(string)
+
+	if !ok {
+		suite.Fail("Failed to find claim")
+
+	}
+	tokenResult,err := suite.cacheRepo.Get(user.Email+"provider_token")
+	if err != nil {
+		suite.Fail("Failed to get token")
+	}
+
+	suite.Equal(tokenResult, result)
+	suite.Equal(user_email, user.Email)
+
+}
+
+//provider sign in new user
+func (suite *UserAuthTest) TestProviderSignInNewUser() {
+	user := models.User{
+		UserID: uuid.New(),
+		FullName:          "Jane Doe",
+		Email:            "Jane@gmail.com",
+		IsVerified:        true,
+		Role: "user",
+		IsProviderSignIn:  true,
+		PhoneNumber:       "1234567890",
+	}
+	result, err := suite.UserAuthCase.HandleProviderSignIn(&user)
+	if err != nil {
+		suite.Fail("Failed to handle provider sign in")
+	}
+
+	tokenstring, err := suite.JwtService.ValidateProviderToken(result)
+	if err != nil {
+		suite.Fail("Failed to validate provider token")
+	}
+	claims, ok := tokenstring.Claims.(jwt.MapClaims)
+
+	if !ok {
+		suite.Fail("Failed to find claim")
+	}
+	user_email, ok := claims["user_email"].(string)
+
+	if !ok {
+		suite.Fail("Failed to find claim")
+
+	}
+	tokenResult,err := suite.cacheRepo.Get(user.Email+"provider_token")
+	if err != nil {
+		suite.Fail("Failed to get token")
+	}
+	response, err := suite.UserRepository.GetUserByEmail(user_email)
+	if err != nil {
+		suite.Fail("Failed to get user")
+	}
+	suite.Equal(tokenResult, result)
+	suite.Equal(user_email, user.Email)
+	suite.Equal(response.Email, user_email)
+	suite.Equal(response.FullName, user.FullName)
+	suite.Equal(response.PhoneNumber, user.PhoneNumber)
+	suite.Equal(response.IsVerified, user.IsVerified)
+	suite.Equal(response.IsProviderSignIn, user.IsProviderSignIn)
+	suite.Equal(response.Role, "user")
+	suite.Equal(response.IsProviderSignIn, true)
+	suite.Equal(response.IsVerified, true)
+
+
 }
 
 // two factor auth

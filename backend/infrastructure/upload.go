@@ -32,7 +32,7 @@ func (f *FileUploadManager) UploadFile(userID string,file *multipart.FileHeader)
 
 	if err != nil {
 		return "", errors.NewCustomError(err.Error(), 500)
-	}
+	} 
 
 	// Return the image url
 	return resp.SecureURL, nil

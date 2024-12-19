@@ -15,17 +15,19 @@ type JWTManager struct {
 	VerificationTokenSecretKey string
 	PasswordResetSecretKey string
 	OTPVerificationSecretKey string
+	ProviderTokenSecretKey string
 }
 
 
 // NewJWTManager creates a new JWTManager
-func NewJWTManager(AcessSecret, RefreshSecret string, VerificationSecret string,PasswordResetSecretKey string, OTPVerificationSecretKey string) *JWTManager {
+func NewJWTManager(AcessSecret, RefreshSecret string, VerificationSecret string,PasswordResetSecretKey string, OTPVerificationSecretKey string,ProviderTokenSecretKey string) *JWTManager {
 	return &JWTManager{
 		AccessTokenSecretKey: AcessSecret,
 		RefreshTokenSecretKey: RefreshSecret,
 		VerificationTokenSecretKey: VerificationSecret,
 		PasswordResetSecretKey: PasswordResetSecretKey,
 		OTPVerificationSecretKey: OTPVerificationSecretKey,
+		ProviderTokenSecretKey: ProviderTokenSecretKey,
 	}
 }
 
@@ -38,9 +40,10 @@ func (manager *JWTManager) Generate(user *models.User,refreshTokenId string) (st
 		"email": user.Email,
 		"role": user.Role,
 		"user_id": user.UserID.String(),
-		"exp": time.Now().Add(time.Minute * 1).Unix(),
-	}
-
+		"token_id": refreshTokenId,
+		"exp": time.Now().Add(time.Hour * 1).Unix(),
+	} 
+ 
 
 	AccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := AccessToken.SignedString([]byte(manager.AccessTokenSecretKey))
@@ -192,6 +195,37 @@ func (manager *JWTManager) ValidateOtpToken(token string) (*jwt.Token, *errors.C
 			return nil, errors.NewCustomError("Unexpected signing method", 500)
 		}
 		return []byte(manager.OTPVerificationSecretKey), nil
+	})
+
+	if err != nil {
+		return nil, errors.NewCustomError(err.Error(), 500)
+	}
+
+	return parsedToken, nil
+}
+
+//Generate provider token
+func (manager *JWTManager) GenerateProviderToken(user *models.User) (string, *errors.CustomError) {
+	claims := jwt.MapClaims{
+		"user_email": user.Email,
+		"user_id": user.UserID.String(),
+		"exp": time.Now().Add(time.Minute * 15).Unix(),
+	}
+	providerToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := providerToken.SignedString([]byte(manager.ProviderTokenSecretKey))
+	if err != nil {
+		return "", errors.NewCustomError("Error generating provider token", 500)
+	}
+	return tokenString, nil
+}
+
+//Validate provider token
+func (manager *JWTManager) ValidateProviderToken(token string) (*jwt.Token, *errors.CustomError) {
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.NewCustomError("Unexpected signing method", 500)
+		}
+		return []byte(manager.ProviderTokenSecretKey), nil
 	})
 
 	if err != nil {

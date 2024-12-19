@@ -33,7 +33,6 @@ type UserUseCaseTestSuite struct {
 	UserAuthCase *usecases.UserAuth
 	UserRepository *repositories.UserRepository
 	
-	TokenRepository *repositories.TokenRepository
 	JwtService *infrastructure.JWTManager
 	HashingService *infrastructure.HashingService
 	MockFileUploadManager *mocks.FileUploadManagerI
@@ -52,7 +51,6 @@ func (suite *UserUseCaseTestSuite) SetupTest() {
 		log.Fatal("Failed to connect to database", err)
 	}
     db.AutoMigrate(&models.User{})
-	db.AutoMigrate(&models.Token{})
 	redisClient := redis.NewClient(&redis.Options{
         Addr:	  "localhost:6379",
         Password: "", // No password set
@@ -73,14 +71,13 @@ func (suite *UserUseCaseTestSuite) SetupTest() {
 	fmt.Println("foo", val)
 	suite.DB = db
 	suite.cacheRepo = infrastructure.NewCacheRepo(redisClient,context.Background())
-	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"))
+	suite.JwtService = infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"),os.Getenv("OTP_SECRET"),os.Getenv("PROVIDERTOKENSECRET"))
 	suite.HashingService = infrastructure.NewHashingService()
 	suite.MockFileUploadManager = new(mocks.FileUploadManagerI)
 	suite.MockEmailService = new(mocks.EmailServiceI)
 	suite.UserRepository = repositories.NewUserRepository(db)
-	suite.TokenRepository = repositories.NewTokenRepository(db)
-	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.TokenRepository,suite.cacheRepo)
-	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService, suite.TokenRepository,os.Getenv("TWO_FACTOR_SECRET"),suite.cacheRepo)
+	suite.UserUsecase = usecases.NewUserUsecase(suite.UserRepository, suite.JwtService, suite.HashingService, suite.MockFileUploadManager, suite.cacheRepo)
+	suite.UserAuthCase = usecases.NewUserAuth(suite.UserRepository,  suite.HashingService, suite.JwtService, suite.MockEmailService,os.Getenv("TWO_FACTOR_SECRET"),suite.cacheRepo)
 }
 
 

@@ -38,13 +38,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database", err)
 	}
-
-	err = db.AutoMigrate(&models.Token{})
-
-	if err != nil {
-		log.Fatal("Failed to connect to database", err)
-
-	}
     err = db.AutoMigrate(&models.User{})
 	if err != nil {
 		log.Fatal("Failed to connect to database", err)
@@ -97,13 +90,12 @@ func main() {
 	cacheRepo := infrastructure.NewCacheRepo(redisClient, context.Background())
 
 	fileUploadManager := infrastructure.NewFileUploadManager(cld)
-	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"), os.Getenv("OTP_SECRET"))
+	jwtService := infrastructure.NewJWTManager(os.Getenv("ACCESS_SECRET"), os.Getenv("REFRESH_SECRET"), os.Getenv("VERIFICATION_SECRET"),os.Getenv("PASSWORD_RESET_TOKEN"), os.Getenv("OTP_SECRET"),os.Getenv("PROVIDERTOKENSECRET"))
 	pwdService := infrastructure.NewHashingService()
-	TokenRepo := repositories.NewTokenRepository(db)
 	UserRepo := repositories.NewUserRepository(db)
-	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager,TokenRepo,cacheRepo)
+	UserUsecase := usecases.NewUserUsecase(UserRepo, jwtService, pwdService, fileUploadManager,cacheRepo)
 	userControllers := controllers.NewUserController(UserUsecase)
-	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService,TokenRepo, os.Getenv("TWO_FACTOR_SECRET"),cacheRepo)
+	UserAuth := usecases.NewUserAuth(UserRepo,pwdService,jwtService, emailService, os.Getenv("TWO_FACTOR_SECRET"),cacheRepo)
 	userAuthController := controllers.NewUserAuthController(UserAuth,UserUsecase)
 	routerService := router.RouterService{
 		JwtService: jwtService,

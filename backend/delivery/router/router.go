@@ -43,13 +43,12 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 	userGroup.Use(infrastructure.SecureHeadersMiddleware())
 
 	userGroup.GET("/get",infrastructure.AdminAuthMiddleware(jwtService),routerControllers.UserController.GetUsers)
-	userGroup.GET("/get/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,routerControllers.UserController.GetUserById)
+	userGroup.GET("/get/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.GetUserById)
 	userGroup.PUT("/update/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UpdateUser)
 	userGroup.DELETE("/delete/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.DeleteUser)
 	userGroup.POST("/upload/:id",infrastructure.UserAuthMiddleware(jwtService),routerControllers.UserController.UploadProfileImagefunc)
 
 
-	userGroup.GET("/validate_token",routerControllers.UserAuthController.ValidateToken)
 
 
 	authGroup := router.Group("/api/auth/user")
@@ -59,16 +58,18 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 
 	authGroup.POST("/register",routerControllers.UserAuthController.RegisterUser)
 	authGroup.POST("/login",routerControllers.UserAuthController.Login)
-	authGroup.GET("/logout",routerControllers.UserAuthController.Logout)
+	authGroup.GET("/logout",infrastructure.AuthMiddleware(jwtService),routerControllers.UserAuthController.CheckToken,routerControllers.UserAuthController.Logout)
 	authGroup.GET("/:provider",routerControllers.UserAuthController.SignInWithProvider)
 	authGroup.GET("/:provider/callback",routerControllers.UserAuthController.Callback)
-	authGroup.GET("/refresh",routerControllers.UserAuthController.RefreshToken)
+	authGroup.POST("/refresh",routerControllers.UserAuthController.RefreshToken)
 	authGroup.GET("/verify_email",routerControllers.UserAuthController.VerifyEmail)
 	authGroup.POST("/resend_verification",routerControllers.UserAuthController.ResendVerificationEmail)
 	authGroup.POST("/forgot_password", routerControllers.UserAuthController.ForgotPassword)
 	authGroup.POST("/reset_password", routerControllers.UserAuthController.ResetPassword)
 	authGroup.POST("/Two_factor_auth", routerControllers.UserAuthController.ValidateTwoFactorAuth)
 	authGroup.POST("/Two_factor_auth/resend_otp", routerControllers.UserAuthController.ResendOtp)
+	authGroup.GET("/validate_token",routerControllers.UserAuthController.ValidateToken)
+
 
 	authGroup.POST("/Two_factor_auth/switch",infrastructure.AuthMiddleware(jwtService), routerControllers.UserAuthController.EnableTwoFactorAuth)
 

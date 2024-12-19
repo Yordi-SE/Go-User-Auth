@@ -46,71 +46,24 @@ export default function SignIn({ searchParams }) {
     }
   };
   const handleSubmit = async (e) => {
-    try {
-      e.preventDefault();
-      setIsLoading(true);
-      setError("");
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`,
-        {
-          email,
-          password,
-        },
-        {
-          withCredentials: true,
-        }
-      );
+    const result = await signIn("credentials", {
+      redirect: false,
+      email,
+      password,
+    });
+    setIsLoading(false);
 
-      if (response.status == 200) {
-        const result = await signIn("credentials", {
-          access_token: response.data.data.access_token,
-          full_name: response.data.data.full_name,
-          email: response.data.data.email,
-          profile_image: response.data.data.profile_image,
-          phone_number: response.data.data.phone_number,
-          user_id: response.data.data.user_id,
-          role: response.data.data.role,
-          is_verified: response.data.data.is_verified,
-          refresh_token: response.data.data.refresh_token,
-
-          redirect: false,
-        });
-        setIsLoading(false);
-
-        if (result?.ok) {
-          window.location.href = "/";
-        } else {
-          setError("Unauthorized: An unexpected error occurred.");
-        }
+    if (result?.ok) {
+      window.location.href = "/";
+    } else {
+      if (result?.error == "Email address is not verified.") {
+        setVerifyBtnVisibilitY(true);
       }
-    } catch (error) {
-      setIsLoading(false);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          if (
-            error.response.data.error.Message ==
-            "Email address is not verified."
-          ) {
-            setVerifyBtnVisibilitY(true);
-          } else if (error.response.status === 400) {
-            setError("Bad Request: Missing or invalid data.");
-          } else if (error.response.status === 401) {
-            setError("Unauthorized: Incorrect email or password.");
-          } else if (error.response.status === 403) {
-            setError("Forbidden: Your account is inactive.");
-          } else if (error.response.status === 500) {
-            setError("Server Error: Please try again later.");
-          } else {
-            setError("An unexpected error occurred.");
-          }
-        } else if (error.request) {
-          setError("Network error: Unable to reach the server.");
-        }
-      } else {
-        setError("Unexpected error: " + String(error));
-      }
+      setError(result?.error);
     }
   };
 

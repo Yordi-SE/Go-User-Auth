@@ -20,12 +20,7 @@ type UserRepositoryI interface {
 	SaveUserUpdate(user *models.User) *errors.CustomError
 }
 
-type TokenRepositoryI interface{
-	CreateToken(token *models.Token) (*models.Token, *errors.CustomError)
-	GetTokenById(tokenId string) (*models.Token, *errors.CustomError)
-	SaveTokenUpdate(token *models.Token) *errors.CustomError
-	DeleteToken(tokenId string) *errors.CustomError
-}
+
 
 type HashingServiceI interface {
 	 HashPassword(password string) (string, *errors.CustomError)
@@ -43,6 +38,8 @@ type JWTServiceI interface {
 	GeneratePasswordResetToken(user *models.User) (string, *errors.CustomError)
 	GenerateOtpToken(user *models.User) (string, *errors.CustomError)
 	ValidateOtpToken(token string) (*jwt.Token, *errors.CustomError)
+GenerateProviderToken(user *models.User) (string, *errors.CustomError)
+ValidateProviderToken(token string) (*jwt.Token, *errors.CustomError) 
 }
 
 type FileUploadManagerI interface {
