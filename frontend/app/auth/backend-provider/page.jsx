@@ -3,10 +3,10 @@
 import axios from "axios";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
-const AuthSuccess = () => {
+const AuthSuccessFunc = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -87,5 +87,13 @@ const AuthSuccess = () => {
     </div>
   );
 };
+
+function AuthSuccess() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthSuccessFunc />
+    </Suspense>
+  );
+}
 
 export default AuthSuccess;

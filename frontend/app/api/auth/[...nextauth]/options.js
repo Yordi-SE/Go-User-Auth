@@ -20,11 +20,17 @@ export const options = {
       },
       async authorize(credentials) {
         let response;
+        console.log("credentials", `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`);
         try {
           if (credentials?.email && credentials?.password) {
             response = await axios.post(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`,
-              credentials
+              `http://app:8080/api/auth/user/login`,
+              credentials,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
             );
 
             if (response.status === 200) {
@@ -57,21 +63,23 @@ export const options = {
               ) {
                 throw new Error("Email address is not verified.");
               } else if (error.response.status === 400) {
-                setError("Bad Request: Missing or invalid data.");
+                throw new Error("Bad Request: Missing or invalid data.");
               } else if (error.response.status === 401) {
-                setError("Unauthorized: Incorrect email or password.");
+                throw new Error("Unauthorized: Incorrect email or password.");
               } else if (error.response.status === 403) {
-                setError("Forbidden: Your account is inactive.");
+                throw new Error("Forbidden: Your account is inactive.");
               } else if (error.response.status === 500) {
-                setError("Server Error: Please try again later.");
+                throw new Error("Server Error: Please try again later.");
               } else {
-                setError("An unexpected error occurred.");
+                throw new Error("An unexpected error occurred.");
               }
             } else if (error.request) {
-              setError("Network error: Unable to reach the server.");
+              console.log("error", error.request);
+
+              throw new Error("Request error: " + String(error.request));
             }
           } else {
-            setError("Unexpected error: " + String(error));
+            throw new Error("Unexpected error: " + String(error));
           }
         }
         return null;

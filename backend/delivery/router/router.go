@@ -3,6 +3,7 @@ package router
 import (
 	"os"
 	"time"
+	"fmt"
 	"user_authorization/delivery/controllers"
 	"user_authorization/infrastructure"
 
@@ -23,6 +24,11 @@ type RouterService struct {
 
 func NewRouter ( routerControllers *RouterControllers, routerService *RouterService)  {
 	router := gin.Default()
+	router.Use(func(c *gin.Context) {
+		referer := c.Request.Referer()
+		fmt.Println("Request received from:", referer)
+		c.Next()
+	})
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:3000"}
 	config.AllowCredentials = true

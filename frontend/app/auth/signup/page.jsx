@@ -35,7 +35,6 @@ function Signup() {
       );
     } catch (e) {
       let email_msg;
-      console.log(e);
       if (axios.isAxiosError(e)) {
         email_msg = e.response?.data?.error.message;
       }

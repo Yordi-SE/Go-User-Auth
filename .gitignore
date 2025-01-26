@@ -40,6 +40,7 @@
 /frontend/.DS_Store
 /frontend/*.pem
 
+.env
 # debug
 /frontend/npm-debug.log*
 /frontend/yarn-debug.log*
