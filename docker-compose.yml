@@ -1,5 +1,6 @@
 services:
   redis:
+    restart: always
     container_name: redis
     image: redis:alpine
     env_file:
@@ -11,6 +12,7 @@ services:
       - mynet
   
   nextapp:
+    restart: always
     build: 
       context: ./frontend
       dockerfile: Dockerfile
@@ -23,6 +25,7 @@ services:
     networks:
       - mynet
   app:
+    restart: always
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -37,6 +40,7 @@ services:
       - mynet
 
   db:
+    restart: always
     image: mysql:8.0
     container_name: mysql_db
     env_file:

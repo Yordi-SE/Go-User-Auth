@@ -38,6 +38,8 @@ RUN \
 
 # Production image, copy all the files and run next
 FROM base AS runner
+
+RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 ENV NODE_ENV=production

@@ -30,7 +30,7 @@ func NewRouter ( routerControllers *RouterControllers, routerService *RouterServ
 		c.Next()
 	})
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
+	config.AllowOrigins = []string{os.Getenv("FRONT_END_URL")}
 	config.AllowCredentials = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE","OPTIONS"}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization","access-control-allow-origin","access-control-allow-headers","access-control-allow-methods","access-control-allow-credentials","Accept", "User-Agent", "Cache-Control"}
