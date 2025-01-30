@@ -51,8 +51,8 @@ function OTPPage() {
         throw new Error("Token validation failed");
       }
 
-      const user = response.data;
-      console.log(response.data);
+      const user = response.data.data;
+      console.log(response.data.data);
 
       await signIn("credentials", {
         access_token: user.access_token,

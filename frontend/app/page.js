@@ -30,6 +30,7 @@ const HomePage = () => {
           },
         }
       );
+      session.user.two_factor_auth = !session.user.two_factor_auth
       setLoading(false)
       console.log(response);
     }
