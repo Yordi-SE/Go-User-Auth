@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"net/http"
+	"os"
 	"time"
 	models "user_authorization/domain"
 	errors "user_authorization/error"
@@ -64,9 +65,9 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 	if err != nil && err.StatusCode != 404 {
 		return nil, errors.NewCustomError("Database error: "+err.Error(), http.StatusInternalServerError)
 	}
-	if existingUser != nil && existingUser.IsProviderSignIn == false {
+	if existingUser != nil && !existingUser.IsProviderSignIn {
 		return nil, errors.NewCustomError("User already exists", 400)
-	} else if (existingUser != nil && existingUser.IsProviderSignIn == true) {
+	} else if (existingUser != nil && existingUser.IsProviderSignIn) {
 		// Update the existing user
 		Password,err := u.PwdService.HashPassword(user.Password)
 		if err != nil {
@@ -115,7 +116,7 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 		}
 		_ = u.CacheRepository.Set(userModel.Email + "verification_token", token, 30*time.Minute)
 		// Get email body
-		emailBody,_ := u.EmailService.GetOTPEmailBody("localhost:8080/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
+		emailBody,_ := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL") + "/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
 		//.Println(errss)
 		// Send verification email
 		_ = u.EmailService.SendEmail(result.Email, "Email Verification", emailBody,"go_auth@gmail.com")
@@ -383,7 +384,7 @@ func (u *UserAuth) ResendVerificationEmail(email string) *errors.CustomError {
 		return err
 	}
 	// Get email body
-	emailBody,errs := u.EmailService.GetOTPEmailBody("localhost:8080/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
+	emailBody,errs := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL") + "/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
 	if errs != nil {
 		return errors.NewCustomError(errs.Error(), http.StatusInternalServerError)
 	}
@@ -412,7 +413,7 @@ func (u *UserAuth) ForgotPassword(email *dto.EmailDTO) *errors.CustomError {
 	if err != nil {
 		return err
 	}
-	emailBody, errs := u.EmailService.GetOTPEmailBody("localhost:8080/api/auth/user/reset_password?reset_token=" + token,"password_verification.html")
+	emailBody, errs := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL") + "api/auth/user/reset_password?reset_token=" + token,"password_verification.html")
 	if errs != nil {
 		return errors.NewCustomError(errs.Error(), http.StatusInternalServerError)
 	}
