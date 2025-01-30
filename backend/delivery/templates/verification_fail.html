@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Verification Failed</title>
-    <style>
+    <style nonce={{ .NONCE }}>
       body {
         font-family: Arial, sans-serif;
         margin: 0;
@@ -55,7 +55,7 @@
         invalid.
       </p>
       <div class="cta">
-        <a href="http://localhost:8080/api/auth/user/resend_verification"
+        <a href="{{ .FRONT_END_URL }}/auth/email_verification_service"
           >Resend Verification Email</a
         >
       </div>

@@ -20,7 +20,6 @@ export const options = {
       },
       async authorize(credentials) {
         let response;
-        console.log("credentials", `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/login`);
         try {
           if (credentials?.email && credentials?.password) {
             response = await axios.post(
@@ -60,7 +59,6 @@ export const options = {
         } catch (error) {
           if (axios.isAxiosError(error)) {
             if (error.response) {
-              console.log("error", error.response.data);
               if (
                 error.response.data.error.message ==
                 "Email address is not verified."
@@ -78,7 +76,6 @@ export const options = {
                 throw new Error("An unexpected error occurred.");
               }
             } else if (error.request) {
-              console.log("error", error.request);
 
               throw new Error("Request error: " + String(error.request));
             }

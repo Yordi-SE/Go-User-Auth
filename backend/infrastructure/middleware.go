@@ -1,7 +1,9 @@
 package infrastructure
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	errors "user_authorization/error"
 	"user_authorization/usecases/interfaces"
@@ -19,32 +21,31 @@ func NewCORSMiddleware() *CORSMiddleware {
 	return &CORSMiddleware{}
 }
 
-//secure  headers middleware
+// secure  headers middleware
 func SecureHeadersMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-        c.Writer.Header().Set("X-Frame-Options", "DENY")
-        c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
-        c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'")
-        c.Next()
-    }
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+		c.Writer.Header().Set("X-Frame-Options", "DENY")
+		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+		nonce := os.Getenv("NONCE") // Generate a random value for each request
+		c.Writer.Header().Set("Content-Security-Policy", fmt.Sprintf("default-src 'self'; style-src 'self' 'nonce-%s'", nonce))
+		c.Next()
+	}
 }
 
 var limiter = rate.NewLimiter(1, 5)
 
 // Middleware to check the rate limit.
-func RateLimitMiddleware()  gin.HandlerFunc {
+func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-    if !limiter.Allow() {
-        c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})
-        c.Abort()
-        return
-    }
-    c.Next()
+		if !limiter.Allow() {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
-}
-
-
 
 // AuthMiddleware middleware
 func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
@@ -97,13 +98,12 @@ func AuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Set("role",role)
-		c.Set("user_id",id)
-		c.Set("token_id",token_id)
-		c.Set("Authorization",access_token)
+		c.Set("role", role)
+		c.Set("user_id", id)
+		c.Set("token_id", token_id)
+		c.Set("Authorization", access_token)
 	}
 }
-
 
 // AuthMiddleware middleware for admin
 func AdminAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
@@ -126,7 +126,7 @@ func UserAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 		user_id := c.Param("id")
 		defer c.Next()
 		role, exists := c.Get("role")
-		if !exists  {
+		if !exists {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": errors.NewCustomError("Unauthorized", http.StatusForbidden),
 			})
@@ -146,7 +146,6 @@ func UserAuthMiddleware(jwtService interfaces.JWTServiceI) gin.HandlerFunc {
 			return
 		}
 
-		
 	}
 }
 

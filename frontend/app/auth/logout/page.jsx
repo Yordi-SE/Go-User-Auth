@@ -21,7 +21,6 @@ export default function LogoutPage() {
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/logout`,
         { withCredentials: true }
       );
-      console.log(res);
       // Client-side logout via NextAuth
       await signOut({ redirect: false });
 

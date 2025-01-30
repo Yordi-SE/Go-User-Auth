@@ -28,7 +28,6 @@ const AuthSuccessFunc = () => {
       }
 
       const user = response.data;
-      console.log(response.data);
 
       await signIn("credentials", {
         access_token: user.access_token,

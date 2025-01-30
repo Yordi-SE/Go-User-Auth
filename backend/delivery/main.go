@@ -33,7 +33,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file",err)
 	}
-	fmt.Println(os.Getenv("DB_CONNECTION_STRING"))
     db, err := gorm.Open(mysql.Open(os.Getenv("DB_CONNECTION_STRING")), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database", err)
@@ -44,8 +43,6 @@ func main() {
 
 	}
 
-	fmt.Println("Successfully connected to database")
-	fmt.Println(os.Getenv("REDIS_PASSWORD"))
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "redis:6379",
 		Password: os.Getenv("REDIS_PASSWORD"),

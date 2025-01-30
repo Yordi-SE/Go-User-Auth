@@ -35,9 +35,7 @@ function Signup() {
       );
     } catch (e) {
       let email_msg;
-      if (axios.isAxiosError(e)) {
-        email_msg = e.response?.data?.error.message;
-      }
+      email_msg = e.response?.data?.error.Message;
       setError("root", {
         type: "400",
         message: email_msg || "Something went wrong, Please try again!",
