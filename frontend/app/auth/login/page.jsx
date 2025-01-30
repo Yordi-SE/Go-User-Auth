@@ -63,7 +63,10 @@ export default function SignIn({ searchParams }) {
       if (result?.error == "Email address is not verified.") {
         setVerifyBtnVisibilitY(true);
       }
-      setError(result?.error);
+      else if(result?.error.split(":")[0].trim() == "Two factor authentication is needed."){
+        router.push("/auth/two_factor_auth?otp_token=" + result?.error.split(":")[1].trim());
+      }
+      setError(result?.error.split(":")[0].trim());
     }
   };
 
@@ -181,7 +184,6 @@ export default function SignIn({ searchParams }) {
               </button>
             </div>
           </div>
-
           <button
             type="submit"
             className={`w-full px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${

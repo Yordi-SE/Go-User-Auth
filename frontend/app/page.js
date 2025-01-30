@@ -3,12 +3,40 @@
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import useAxiosAuth from "@/lib/hooks/axiosAuth";
+import { useState } from "react";
+
 
 const HomePage = () => {
+  const axios = useAxiosAuth();
+
   const router = useRouter();
   const { data: session, status } = useSession();
-  console.log(session);
-  console.log(status);
+  const [loading, setLoading] = useState(false);
+  
+
+  const handle2fa = async () => {
+    setLoading(true)
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/user/Two_factor_auth/switch`,
+        {
+          email: session.user.email,
+        },
+        { withCredentials: true },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      setLoading(false)
+      console.log(response);
+    }
+    catch (error) {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -42,6 +70,12 @@ const HomePage = () => {
             <button className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition">
               View Dashboard
             </button>
+            <div className="flex items-center justify-between max-w-fit space-x-5">
+            <input type="checkbox" className="" id="2fa" onChange={handle2fa} checked={session.user.two_factor_auth} disabled={loading}/>
+            <label htmlFor="2fa" className="block text-sm font-medium text-gray-700">
+              {session.user.two_factor_auth? "Disable Two Step Verification" : "Enable Two Step Verification"}
+            </label>
+            </div>
             <button
               onClick={() => {
                 router.push("/auth/logout");
@@ -50,6 +84,7 @@ const HomePage = () => {
             >
               Logout
             </button>
+
           </div>
         </div>
       )}

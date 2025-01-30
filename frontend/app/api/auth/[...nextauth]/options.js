@@ -32,6 +32,9 @@ export const options = {
                 },
               }
             );
+            if (response.data.data.two_factor_auth === true) {
+              throw new Error("Two factor authentication is needed.:" + response.data.data.otp_token);
+            }
 
             if (response.status === 200) {
               return response.data.data;
@@ -48,6 +51,7 @@ export const options = {
                 role: credentials.role,
                 is_verified: credentials.is_verified,
                 refresh_token: credentials.refresh_token,
+                two_factor_auth: credentials.two_factor_auth,
               };
               return user;
             }
@@ -79,7 +83,7 @@ export const options = {
               throw new Error("Request error: " + String(error.request));
             }
           } else {
-            throw new Error("Unexpected error: " + String(error));
+            throw new Error(String(error.message));
           }
         }
         return null;

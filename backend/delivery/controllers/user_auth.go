@@ -329,7 +329,7 @@ func (u *UserAuthController) ValidateTwoFactorAuth(c *gin.Context) {
 	}
 	c.SetCookie("access_token", token.AccessToken, 3600, "/", "localhost", false, true)
 	c.SetCookie("refresh_token", token.RefreshToken, 3600*24*3, "/", "localhost", false, true)
-	c.JSON(http.StatusOK, gin.H{"message": "Two factor authentication enabled successfully", "data": token})
+	c.JSON(http.StatusOK, gin.H{"message": "login successful", "data": token})
 
 }
 

@@ -205,6 +205,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 		ProfileImage: result.ProfileImage,
 		AccessToken: accessToken,
 		RefreshToken: refreshToken,
+		TwoFactorAuth: result.TwoFactorAuth,
 	}
 
 	return &token, nil
@@ -564,7 +565,7 @@ func (u *UserAuth) TwoFactorAuthenticationVerification(email string,otpCode stri
 	if !ok {
 		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
-	OtpTokenResult, err := u.CacheRepository.Get(tokenEmail + "otp_token")
+	OtpTokenResult, err := u.CacheRepository.Get(tokenEmail + "otp_Token")
 	if err != nil {
 		return  nil, err
 	}

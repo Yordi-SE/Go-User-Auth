@@ -38,7 +38,7 @@ export default function LogoutPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <div className="p-8 space-y-4 bg-white rounded shadow-lg">
-        <h1 className="text-2xl font-bold">Logging Out</h1>
+        <h1 className="text-2xl font-bold text-gray-600">Logging Out</h1>
         <p className="text-gray-600">
           We’re logging you out of your account...
         </p>

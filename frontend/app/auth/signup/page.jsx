@@ -304,7 +304,7 @@ function Signup() {
           <p className="mt-2 text-sm text-red-600">{errors.root?.message}</p>
         )}
         <div className="flex w-full gap-2">
-          <p>Already have an account?</p>
+          <p className="text-gray-600 text-lg">Already have an account?</p>
           <Link
             href={"/auth/login"}
             className="text-accent-3 font-bold text-blue-700"

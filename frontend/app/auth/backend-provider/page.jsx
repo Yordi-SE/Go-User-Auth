@@ -40,7 +40,7 @@ const AuthSuccessFunc = () => {
         role: user.role,
         is_verified: user.is_verified,
         refresh_token: user.refresh_token,
-
+        two_factor_auth: user.two_factor_auth,
         redirect: false,
       });
 
