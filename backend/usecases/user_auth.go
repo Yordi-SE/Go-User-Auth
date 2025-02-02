@@ -18,48 +18,45 @@ import (
 
 type UserAuthI interface {
 	CheckToken(tokenId string, userId string) *errors.CustomError
-	CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError)
-	SignOut(tokenId string,userId string) *errors.CustomError
-	SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.CustomError)
+	CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO, *errors.CustomError)
+	SignOut(tokenId string, userId string) *errors.CustomError
+	SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO, *errors.CustomError)
 	RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDTO, *errors.CustomError)
 	HandleProviderSignIn(user *models.User) (string, *errors.CustomError)
 	VerifyEmail(Token string) *errors.CustomError
 	ResendVerificationEmail(email string) *errors.CustomError
 	ForgotPassword(email *dto.EmailDTO) *errors.CustomError
 	ResetPassword(password string, token string) *errors.CustomError
-	 ValidateToken(token string) (*dto.UserResponseDTO, *errors.CustomError)
+	ValidateToken(token string) (*dto.UserResponseDTO, *errors.CustomError)
 	EnableTwoFactorAuthentication(email string) *errors.CustomError
-	TwoFactorAuthenticationVerification(email string,otpCode string, otpToken string) (*dto.UserResponseDTO,*errors.CustomError)
-	ResendOTPCode(email string,otpToken string) *errors.CustomError	
+	TwoFactorAuthenticationVerification(email string, otpCode string, otpToken string) (*dto.UserResponseDTO, *errors.CustomError)
+	ResendOTPCode(email string, otpToken string) *errors.CustomError
 }
 
-//UserAuth struct
+// UserAuth struct
 type UserAuth struct {
-	UserRepository interfaces.UserRepositoryI
-	PwdService     interfaces.HashingServiceI
-	JwtService     interfaces.JWTServiceI
-	EmailService  interfaces.EmailServiceI
+	UserRepository     interfaces.UserRepositoryI
+	PwdService         interfaces.HashingServiceI
+	JwtService         interfaces.JWTServiceI
+	EmailService       interfaces.EmailServiceI
 	TwoFactorSecretKey string
-	CacheRepository interfaces.CacheRepositoryI
+	CacheRepository    interfaces.CacheRepositoryI
 }
 
-
-//NewUserAuth creates a new UserAuth
-func NewUserAuth(userRepository interfaces.UserRepositoryI, pwdService interfaces.HashingServiceI, jwtService interfaces.JWTServiceI, emailService interfaces.EmailServiceI,TwoFactorSecretKey string,cacheRepository interfaces.CacheRepositoryI) *UserAuth {
+// NewUserAuth creates a new UserAuth
+func NewUserAuth(userRepository interfaces.UserRepositoryI, pwdService interfaces.HashingServiceI, jwtService interfaces.JWTServiceI, emailService interfaces.EmailServiceI, TwoFactorSecretKey string, cacheRepository interfaces.CacheRepositoryI) *UserAuth {
 	return &UserAuth{
-		UserRepository: userRepository,
-		JwtService: jwtService,
-		PwdService: pwdService,
-		EmailService: emailService,
+		UserRepository:     userRepository,
+		JwtService:         jwtService,
+		PwdService:         pwdService,
+		EmailService:       emailService,
 		TwoFactorSecretKey: TwoFactorSecretKey,
-		CacheRepository: cacheRepository,
+		CacheRepository:    cacheRepository,
 	}
 }
 
-
-
 // CreateUser  creates a new user
-func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO,*errors.CustomError) {
+func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseDTO, *errors.CustomError) {
 	existingUser, err := u.UserRepository.GetUserByEmail(user.Email)
 	var newUser dto.UserResponseDTO
 	if err != nil && err.StatusCode != 404 {
@@ -67,9 +64,9 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 	}
 	if existingUser != nil && !existingUser.IsProviderSignIn {
 		return nil, errors.NewCustomError("User already exists", 400)
-	} else if (existingUser != nil && existingUser.IsProviderSignIn) {
+	} else if existingUser != nil && existingUser.IsProviderSignIn {
 		// Update the existing user
-		Password,err := u.PwdService.HashPassword(user.Password)
+		Password, err := u.PwdService.HashPassword(user.Password)
 		if err != nil {
 			return nil, err
 		}
@@ -78,25 +75,24 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 		existingUser.PhoneNumber = user.PhoneNumber
 		existingUser.IsProviderSignIn = false
 		errs := u.UserRepository.SaveUserUpdate(existingUser)
-		if (errs != nil) {
+		if errs != nil {
 			return nil, errs
 		}
 		newUser = dto.UserResponseDTO{
-			UserId: existingUser.UserID,
-			FullName: existingUser.FullName,
-			Email: existingUser.Email,
-			Role: existingUser.Role,
-			PhoneNumber: existingUser.PhoneNumber,
+			UserId:           existingUser.UserID,
+			FullName:         existingUser.FullName,
+			Email:            existingUser.Email,
+			Role:             existingUser.Role,
+			PhoneNumber:      existingUser.PhoneNumber,
 			IsProviderSignIn: existingUser.IsProviderSignIn,
-			IsVerified: existingUser.IsVerified,
-			ProfileImage: existingUser.ProfileImage,
-			TwoFactorAuth: existingUser.TwoFactorAuth,
+			IsVerified:       existingUser.IsVerified,
+			ProfileImage:     existingUser.ProfileImage,
+			TwoFactorAuth:    existingUser.TwoFactorAuth,
 		}
-
 
 	} else {
 		userId := uuid.New()
-		Password,err := u.PwdService.HashPassword(user.Password)
+		Password, err := u.PwdService.HashPassword(user.Password)
 		if err != nil {
 			return nil, err
 		}
@@ -105,48 +101,47 @@ func (u *UserAuth) CreateUser(user *dto.UserRegistrationDTO) (*dto.UserResponseD
 			UserID:      userId,
 			FullName:    user.FullName,
 			Email:       user.Email,
-			Role:		"user",
+			Role:        "user",
 			Password:    user.Password,
 			PhoneNumber: user.PhoneNumber,
 		}
 		token, _ := u.JwtService.GenerateVerificationToken(&userModel)
 		result, errs := u.UserRepository.CreateUser(&userModel)
-		if (errs != nil) {
+		if errs != nil {
 			return nil, errs
 		}
-		_ = u.CacheRepository.Set(userModel.Email + "verification_token", token, 30*time.Minute)
+		_ = u.CacheRepository.Set(userModel.Email+"verification_token", token, 30*time.Minute)
 		// Get email body
-		emailBody,_ := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL") + "/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
+		emailBody, _ := u.EmailService.GetOTPEmailBody(os.Getenv("FRONT_END_URL")+"/auth/email_verification_service/verify_email?verification_token="+token, "email_verification.html")
 		//.Println(errss)
 		// Send verification email
-		_ = u.EmailService.SendEmail(result.Email, "Email Verification", emailBody,"go_auth@gmail.com")
+		_ = u.EmailService.SendEmail(result.Email, "Email Verification", emailBody, "go_auth@gmail.com")
 		newUser = dto.UserResponseDTO{
-			UserId: result.UserID,
-			FullName: result.FullName,
-			Email: result.Email,
-			Role: result.Role,
-			PhoneNumber: result.PhoneNumber,
+			UserId:           result.UserID,
+			FullName:         result.FullName,
+			Email:            result.Email,
+			Role:             result.Role,
+			PhoneNumber:      result.PhoneNumber,
 			IsProviderSignIn: result.IsProviderSignIn,
-			IsVerified: result.IsVerified,
-			ProfileImage: result.ProfileImage,
-			TwoFactorAuth: result.TwoFactorAuth,
+			IsVerified:       result.IsVerified,
+			ProfileImage:     result.ProfileImage,
+			TwoFactorAuth:    result.TwoFactorAuth,
 		}
 	}
 
-
-	return &newUser,nil
+	return &newUser, nil
 
 }
 
 // Signup user
-func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.CustomError) {
+func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO, *errors.CustomError) {
 
 	result, err := u.UserRepository.GetUserByEmail(user.Email)
 	if err != nil {
 		return nil, err
 	}
 	if !u.PwdService.ComparePassword(result.Password, user.Password) {
-		return nil,errors.NewCustomError("Invalid email or password", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid email or password", http.StatusUnauthorized)
 	}
 
 	if result.TwoFactorAuth {
@@ -159,54 +154,54 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 		if err != nil {
 			return nil, errors.NewCustomError(err.Error(), http.StatusInternalServerError)
 		}
-		errr = u.CacheRepository.Set(result.Email + "otp_code", otpCode, 15*time.Minute)
+		errr = u.CacheRepository.Set(result.Email+"otp_code", otpCode, 15*time.Minute)
 		if errr != nil {
 			return nil, errr
 		}
 
-		errr = u.CacheRepository.Set(result.Email + "otp_Token", otp_token, 15*time.Minute)
+		errr = u.CacheRepository.Set(result.Email+"otp_Token", otp_token, 15*time.Minute)
 		if errr != nil {
 			return nil, errr
 		}
-		emailBody,_ := u.EmailService.GetOTPEmailBody(otpCode,"otp_verification.html")
+		emailBody, _ := u.EmailService.GetOTPEmailBody(otpCode, "otp_verification.html")
 
-		_ = u.EmailService.SendEmail(result.Email, "Two Factor Authentication", emailBody,"go_auth@gmail.com")
+		_ = u.EmailService.SendEmail(result.Email, "Two Factor Authentication", emailBody, "go_auth@gmail.com")
 
 		return &dto.UserResponseDTO{
-			TwoFactorAuth: result.TwoFactorAuth,
-			Email: result.Email,
-			FullName: result.FullName,
-			Role: result.Role,
-			PhoneNumber: result.PhoneNumber,
+			TwoFactorAuth:    result.TwoFactorAuth,
+			Email:            result.Email,
+			FullName:         result.FullName,
+			Role:             result.Role,
+			PhoneNumber:      result.PhoneNumber,
 			IsProviderSignIn: result.IsProviderSignIn,
-			IsVerified: result.IsVerified,
-			ProfileImage: result.ProfileImage,
-			OTPToken: otp_token, 
-		},nil
+			IsVerified:       result.IsVerified,
+			ProfileImage:     result.ProfileImage,
+			OTPToken:         otp_token,
+		}, nil
 	}
 	tokenId := uuid.New()
-	accessToken, refreshToken, err := u.JwtService.Generate(result,tokenId.String())
+	accessToken, refreshToken, err := u.JwtService.Generate(result, tokenId.String())
 	if err != nil {
 		return nil, err
 	}
 
-	err = u.CacheRepository.Set(result.UserID.String() + tokenId.String(), refreshToken, 72 *time.Hour)
+	err = u.CacheRepository.Set(result.UserID.String()+tokenId.String(), refreshToken, 72*time.Hour)
 	if err != nil {
 		return nil, err
 	}
 
 	token := dto.UserResponseDTO{
-		UserId: result.UserID,
-		FullName: result.FullName,
-		Email: result.Email,
-		Role: result.Role,
-		PhoneNumber: result.PhoneNumber,
+		UserId:           result.UserID,
+		FullName:         result.FullName,
+		Email:            result.Email,
+		Role:             result.Role,
+		PhoneNumber:      result.PhoneNumber,
 		IsProviderSignIn: result.IsProviderSignIn,
-		IsVerified: result.IsVerified,
-		ProfileImage: result.ProfileImage,
-		AccessToken: accessToken,
-		RefreshToken: refreshToken,
-		TwoFactorAuth: result.TwoFactorAuth,
+		IsVerified:       result.IsVerified,
+		ProfileImage:     result.ProfileImage,
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		TwoFactorAuth:    result.TwoFactorAuth,
 	}
 
 	return &token, nil
@@ -214,7 +209,7 @@ func (u *UserAuth) SignIn(user *dto.UserLoginDTO) (*dto.UserResponseDTO,*errors.
 }
 
 // Signout user
-func (u *UserAuth) SignOut(tokenId string,userId string) *errors.CustomError {
+func (u *UserAuth) SignOut(tokenId string, userId string) *errors.CustomError {
 	err := u.CacheRepository.Delete(userId + tokenId)
 	if err != nil {
 		return err
@@ -223,12 +218,10 @@ func (u *UserAuth) SignOut(tokenId string,userId string) *errors.CustomError {
 	return nil
 }
 
-
-
 // Refresh token
 func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDTO, *errors.CustomError) {
-	// 
-	token ,err := u.JwtService.ValidateRefreshToken(refreshToken.RefreshToken)
+	//
+	token, err := u.JwtService.ValidateRefreshToken(refreshToken.RefreshToken)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +229,7 @@ func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDT
 		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok  {
+	if !ok {
 		return nil, errors.NewCustomError("Invalid token claims", http.StatusUnauthorized)
 	}
 	email, ok := claims["email"].(string)
@@ -267,22 +260,22 @@ func (u *UserAuth) RefreshToken(refreshToken *dto.RefreshTokenDTO) (*dto.TokenDT
 	if result != refreshToken.RefreshToken {
 		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
-	user := models.User {
+	user := models.User{
 		UserID: userId,
-		Email: email,
-		Role: role,
+		Email:  email,
+		Role:   role,
 	}
-	accessToken, refreshtoken,err := u.JwtService.Generate(&user,tokenId)
+	accessToken, refreshtoken, err := u.JwtService.Generate(&user, tokenId)
 	if err != nil {
 		return nil, err
 	}
 	result = refreshtoken
-	err = u.CacheRepository.Set(userId.String() + tokenId, refreshtoken, 72 * time.Hour)
+	err = u.CacheRepository.Set(userId.String()+tokenId, refreshtoken, 72*time.Hour)
 	if err != nil {
 		return nil, err
 	}
 	tokens := dto.TokenDTO{
-		AccessToken: accessToken,
+		AccessToken:  accessToken,
 		RefreshToken: refreshtoken,
 	}
 	return &tokens, nil
@@ -295,7 +288,7 @@ func (u *UserAuth) HandleProviderSignIn(user *models.User) (string, *errors.Cust
 		return "", errors.NewCustomError("Database error: "+err.Error(), http.StatusInternalServerError)
 	}
 	if existingUser != nil {
-		providerToken ,err := u.JwtService.GenerateProviderToken(existingUser)
+		providerToken, err := u.JwtService.GenerateProviderToken(existingUser)
 		if err != nil {
 			return "", err
 		}
@@ -304,7 +297,7 @@ func (u *UserAuth) HandleProviderSignIn(user *models.User) (string, *errors.Cust
 		if err != nil {
 			return "", err
 		}
-		err = u.CacheRepository.Set(existingUser.Email + "provider_token", providerToken, 15 * time.Minute)
+		err = u.CacheRepository.Set(existingUser.Email+"provider_token", providerToken, 15*time.Minute)
 		if err != nil {
 			return "", err
 		}
@@ -316,7 +309,7 @@ func (u *UserAuth) HandleProviderSignIn(user *models.User) (string, *errors.Cust
 	if err != nil {
 		return "", err
 	}
-	err = u.CacheRepository.Set(user.Email + "provider_token", providerToken, 15 * time.Minute)
+	err = u.CacheRepository.Set(user.Email+"provider_token", providerToken, 15*time.Minute)
 	if err != nil {
 		return "", err
 	}
@@ -346,7 +339,7 @@ func (u *UserAuth) VerifyEmail(Token string) *errors.CustomError {
 	if !ok {
 		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
-	tokenResult,err := u.CacheRepository.Get(email + "verification_token")
+	tokenResult, err := u.CacheRepository.Get(email + "verification_token")
 	if err != nil {
 		return err
 	}
@@ -356,7 +349,7 @@ func (u *UserAuth) VerifyEmail(Token string) *errors.CustomError {
 	}
 	user, err := u.UserRepository.GetUserByEmail(email)
 	if err != nil {
-		return err 
+		return err
 	}
 	user.IsVerified = true
 	err = u.UserRepository.SaveUserUpdate(user)
@@ -379,25 +372,24 @@ func (u *UserAuth) ResendVerificationEmail(email string) *errors.CustomError {
 	if err != nil {
 		return err
 	}
-	err = u.CacheRepository.Set(user.Email + "verification_token", token, 30*time.Minute)
+	err = u.CacheRepository.Set(user.Email+"verification_token", token, 30*time.Minute)
 	if err != nil {
 		return err
 	}
 	// Get email body
-	emailBody,errs := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL") + "/api/auth/user/verify_email?verification_token=" + token,"email_verification.html")
+	emailBody, errs := u.EmailService.GetOTPEmailBody(os.Getenv("FRONT_END_URL")+"/auth/email_verification_service/verify_email?verification_token="+token, "email_verification.html")
 	if errs != nil {
 		return errors.NewCustomError(errs.Error(), http.StatusInternalServerError)
 	}
 	// Send verification email
-	e := u.EmailService.SendEmail(user.Email, "Email Verification", emailBody,"go_auth@gmail.com")
+	e := u.EmailService.SendEmail(user.Email, "Email Verification", emailBody, "go_auth@gmail.com")
 	if e != nil {
 		return errors.NewCustomError(e.Error(), http.StatusInternalServerError)
 	}
 	return nil
 }
 
-
-//Forgot Password
+// Forgot Password
 func (u *UserAuth) ForgotPassword(email *dto.EmailDTO) *errors.CustomError {
 	user, err := u.UserRepository.GetUserByEmail(email.Email)
 	if err != nil {
@@ -409,27 +401,26 @@ func (u *UserAuth) ForgotPassword(email *dto.EmailDTO) *errors.CustomError {
 	}
 
 	// Get email body
-	err = u.CacheRepository.Set(user.Email + "password_reset_token", token, 30*time.Minute)
+	err = u.CacheRepository.Set(user.Email+"password_reset_token", token, 30*time.Minute)
 	if err != nil {
 		return err
 	}
-	emailBody, errs := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL") + "api/auth/user/reset_password?reset_token=" + token,"password_verification.html")
+	emailBody, errs := u.EmailService.GetOTPEmailBody(os.Getenv("BACKEND_URL")+"api/auth/user/reset_password?reset_token="+token, "password_verification.html")
 	if errs != nil {
 		return errors.NewCustomError(errs.Error(), http.StatusInternalServerError)
 	}
 
 	// Send verification email
-	e := u.EmailService.SendEmail(user.Email, "Password Reset", emailBody,"noreplay@gmail.com")
+	e := u.EmailService.SendEmail(user.Email, "Password Reset", emailBody, "noreplay@gmail.com")
 	if e != nil {
 		return errors.NewCustomError(e.Error(), http.StatusInternalServerError)
 	}
 
 	return nil
 
-
 }
 
-//reset Password
+// reset Password
 func (u *UserAuth) ResetPassword(password string, token string) *errors.CustomError {
 	Token, err := u.JwtService.ValidePasswordResetToken(token)
 	if err != nil {
@@ -461,7 +452,7 @@ func (u *UserAuth) ResetPassword(password string, token string) *errors.CustomEr
 	if tokenResult != token {
 		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
-	password , err = u.PwdService.HashPassword(password)
+	password, err = u.PwdService.HashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -476,69 +467,67 @@ func (u *UserAuth) ResetPassword(password string, token string) *errors.CustomEr
 func (u *UserAuth) ValidateToken(token string) (*dto.UserResponseDTO, *errors.CustomError) {
 	tokenString, err := u.JwtService.ValidateProviderToken(token)
 	if err != nil {
-		return nil,err 
+		return nil, err
 	}
 	if tokenString == nil || !tokenString.Valid {
-		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 
 	claims, ok := tokenString.Claims.(jwt.MapClaims)
-	if !ok  {
-		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+	if !ok {
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 	email, ok := claims["user_email"].(string)
 	if !ok {
-		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 	user, err := u.UserRepository.GetUserByEmail(email)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenResult ,err := u.CacheRepository.Get(user.Email + "provider_token")
+	tokenResult, err := u.CacheRepository.Get(user.Email + "provider_token")
 	if err != nil {
 		return nil, err
 	}
 	if tokenResult != token {
-		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 	tokenId := uuid.New()
-	accessToken, refreshToken, err := u.JwtService.Generate(user,tokenId.String())
+	accessToken, refreshToken, err := u.JwtService.Generate(user, tokenId.String())
 	if err != nil {
 		return nil, err
 	}
 
-	err = u.CacheRepository.Set(user.UserID.String() + tokenId.String(), refreshToken, 72 *time.Hour)
+	err = u.CacheRepository.Set(user.UserID.String()+tokenId.String(), refreshToken, 72*time.Hour)
 	if err != nil {
 		return nil, err
 	}
-
 
 	response := dto.UserResponseDTO{
-		UserId: user.UserID,
-		FullName: user.FullName,
-		Email: user.Email,
-		Role: user.Role,
-		PhoneNumber: user.PhoneNumber,
+		UserId:           user.UserID,
+		FullName:         user.FullName,
+		Email:            user.Email,
+		Role:             user.Role,
+		PhoneNumber:      user.PhoneNumber,
 		IsProviderSignIn: user.IsProviderSignIn,
-		IsVerified: user.IsVerified,
-		ProfileImage: user.ProfileImage,
-		TwoFactorAuth: user.TwoFactorAuth,
-		AccessToken: accessToken,
-		RefreshToken: refreshToken,
-
+		IsVerified:       user.IsVerified,
+		ProfileImage:     user.ProfileImage,
+		TwoFactorAuth:    user.TwoFactorAuth,
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
 	}
 	return &response, nil
 }
 
-func (u *UserAuth) CheckToken(tokenId string,userId string) *errors.CustomError {
-	token ,err := u.CacheRepository.Get(userId + tokenId)
+func (u *UserAuth) CheckToken(tokenId string, userId string) *errors.CustomError {
+	token, err := u.CacheRepository.Get(userId + tokenId)
 	if err != nil {
 		return err
 	}
 	tokenString, err := u.JwtService.ValidateRefreshToken(token)
 	if err != nil {
-		return err 
+		return err
 	}
 	if tokenString == nil || !tokenString.Valid {
 		return errors.NewCustomError("Invalid token", http.StatusUnauthorized)
@@ -546,9 +535,8 @@ func (u *UserAuth) CheckToken(tokenId string,userId string) *errors.CustomError 
 	return nil
 }
 
-
-//2FA verification
-func (u *UserAuth) TwoFactorAuthenticationVerification(email string,otpCode string, otpToken string) (*dto.UserResponseDTO,*errors.CustomError) {
+// 2FA verification
+func (u *UserAuth) TwoFactorAuthenticationVerification(email string, otpCode string, otpToken string) (*dto.UserResponseDTO, *errors.CustomError) {
 	// verify otpCode
 
 	OTPToken, err := u.JwtService.ValidateOtpToken(otpToken)
@@ -556,7 +544,7 @@ func (u *UserAuth) TwoFactorAuthenticationVerification(email string,otpCode stri
 		return nil, err
 	}
 	if OTPToken == nil || !OTPToken.Valid {
-		return nil,errors.NewCustomError("Invalid token", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid token", http.StatusUnauthorized)
 	}
 	claims, ok := OTPToken.Claims.(jwt.MapClaims)
 	if !ok || !OTPToken.Valid {
@@ -568,48 +556,48 @@ func (u *UserAuth) TwoFactorAuthenticationVerification(email string,otpCode stri
 	}
 	OtpTokenResult, err := u.CacheRepository.Get(tokenEmail + "otp_Token")
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	if OtpTokenResult != otpToken {
-		return nil,errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
 	}
 	result, err := u.UserRepository.GetUserByEmail(tokenEmail)
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	valid := totp.Validate(otpCode, u.TwoFactorSecretKey)
 	if !valid {
-		return nil,errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
 	}
 	Otpresult, err := u.CacheRepository.Get(tokenEmail + "otp_code")
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	if Otpresult != otpCode {
-		return nil,errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
+		return nil, errors.NewCustomError("Invalid OTP code", http.StatusUnauthorized)
 	}
 	tokenId := uuid.New()
-	accessToken, refreshToken, err := u.JwtService.Generate(result,tokenId.String())
+	accessToken, refreshToken, err := u.JwtService.Generate(result, tokenId.String())
 	if err != nil {
 		return nil, err
 	}
-	err = u.CacheRepository.Set(result.UserID.String() + tokenId.String(), refreshToken, 72 *time.Hour)
+	err = u.CacheRepository.Set(result.UserID.String()+tokenId.String(), refreshToken, 72*time.Hour)
 	if err != nil {
 		return nil, err
 	}
 
 	token := dto.UserResponseDTO{
-		UserId: result.UserID,
-		FullName: result.FullName,
-		Email: result.Email,
-		Role: result.Role,
-		PhoneNumber: result.PhoneNumber,
+		UserId:           result.UserID,
+		FullName:         result.FullName,
+		Email:            result.Email,
+		Role:             result.Role,
+		PhoneNumber:      result.PhoneNumber,
 		IsProviderSignIn: result.IsProviderSignIn,
-		IsVerified: result.IsVerified,
-		ProfileImage: result.ProfileImage,
-		AccessToken: accessToken,
-		RefreshToken: refreshToken,
-		TwoFactorAuth: result.TwoFactorAuth,
+		IsVerified:       result.IsVerified,
+		ProfileImage:     result.ProfileImage,
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		TwoFactorAuth:    result.TwoFactorAuth,
 	}
 
 	return &token, nil
@@ -630,7 +618,7 @@ func (u *UserAuth) EnableTwoFactorAuthentication(email string) *errors.CustomErr
 }
 
 // Resend otp code
-func (u *UserAuth) ResendOTPCode(email string,otpToken string) *errors.CustomError {
+func (u *UserAuth) ResendOTPCode(email string, otpToken string) *errors.CustomError {
 	OTPToken, err := u.JwtService.ValidateOtpToken(otpToken)
 	if err != nil {
 		return err
@@ -656,11 +644,11 @@ func (u *UserAuth) ResendOTPCode(email string,otpToken string) *errors.CustomErr
 	if errs != nil {
 		return errors.NewCustomError(errs.Error(), http.StatusInternalServerError)
 	}
-	err = u.CacheRepository.Set(result.Email + "otp_code",otpCode, 15 * time.Minute)
+	err = u.CacheRepository.Set(result.Email+"otp_code", otpCode, 15*time.Minute)
 	if err != nil {
 		return err
 	}
-	emailBody,errs := u.EmailService.GetOTPEmailBody(otpCode,"otp_verification.html")
+	emailBody, errs := u.EmailService.GetOTPEmailBody(otpCode, "otp_verification.html")
 	if errs != nil {
 		return errors.NewCustomError("Error getting email body", http.StatusInternalServerError)
 	}

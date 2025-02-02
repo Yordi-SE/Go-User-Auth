@@ -30,7 +30,6 @@ func NewRouter(routerControllers *RouterControllers, routerService *RouterServic
 	config.ExposeHeaders = []string{"Content-Length"}
 	config.MaxAge = 12 * time.Hour
 	router.Use(cors.New(config))
-	router.LoadHTMLFiles("/app/delivery/templates/verification_success.html", "/app/delivery/templates/verification_fail.html")
 
 	jwtService := routerService.JwtService
 

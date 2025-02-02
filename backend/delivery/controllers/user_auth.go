@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"net/http"
-	"os"
 	models "user_authorization/domain"
 	errors "user_authorization/error"
 	"user_authorization/usecases"
@@ -205,17 +204,11 @@ func (u *UserAuthController) VerifyEmail(c *gin.Context) {
 	token := c.Query("verification_token")
 	errs := u.userAuthUseCase.VerifyEmail(token)
 	if errs != nil {
-		c.HTML(http.StatusOK, "verification_fail.html", gin.H{
-			"NONCE":         os.Getenv("NONCE"),
-			"FRONT_END_URL": os.Getenv("FRONT_END_URL"),
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": errors.NewCustomError(errs.Error(), http.StatusUnauthorized)})
 
 		return
 	}
-	c.HTML(http.StatusOK, "verification_success.html", gin.H{
-		"NONCE":         os.Getenv("NONCE"),
-		"FRONT_END_URL": os.Getenv("FRONT_END_URL"),
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
 }
 
 // Resend verification email
