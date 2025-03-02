@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"github.com/markbates/goth/gothic"
 	"strconv"
+	"github.com/gorilla/sessions"
 	"user_authorization/delivery/controllers"
 	"user_authorization/delivery/router"
 	"user_authorization/infrastructure"
@@ -71,6 +73,15 @@ func main() {
 	if GOOGLE_CLIENT_ID == "" || GOOGLE_CLIENT_SECRET == "" || GOOGlE_REDIRECT_URL == "" {
 		log.Fatal("Google client id, client secret and redirect url must be set")
 	}
+	gothic_secret_key := os.Getenv("SESSION_SECRET") // Replace with a strong, unique key
+	store := sessions.NewCookieStore([]byte(gothic_secret_key))
+	store.MaxAge(86400 * 30) // Sessions last 30 days
+	store.Options.Path = "/"
+	store.Options.HttpOnly = true // Prevents JavaScript access to cookies
+	store.Options.Secure = false  // Set to true in production with HTTPS
+
+	// Assign the store to gothic
+	gothic.Store = store
 	goth.UseProviders(
 		google.New(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGlE_REDIRECT_URL,"profile","email"),
 	)
